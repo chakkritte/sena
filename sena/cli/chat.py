@@ -380,7 +380,7 @@ async def _chat_loop(
     finally:
         # Disconnect MCP clients
         for client in mcp_clients:
-            asyncio.run(client.disconnect())
+            await client.disconnect()
 
 
 @app.command()
