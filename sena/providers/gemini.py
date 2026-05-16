@@ -120,7 +120,7 @@ class GeminiProvider(BaseProvider):
         try:
             response = await self.client.models.generate_content(  # type: ignore[misc]
                 model=request.model or self.default_model,
-                contents=contents,  # type: ignore[arg-type]
+                contents=contents,
                 config=config,
             )
             text = ""
@@ -171,7 +171,7 @@ class GeminiProvider(BaseProvider):
         try:
             async for chunk in await self.client.aio.models.generate_content_stream(
                 model=request.model or self.default_model,
-                contents=contents,  # type: ignore[arg-type]
+                contents=contents,
                 config=config,
             ):
                 text = ""

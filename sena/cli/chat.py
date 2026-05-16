@@ -366,12 +366,17 @@ async def _chat_loop(
             except OSError:
                 pass
             # Dispatch slash commands before sending to the LLM
-            slash_result = slash.dispatch(messages, stripped)
+            slash_result = await slash.dispatch(messages, stripped)
             if slash_result is not None:
                 if slash_result.messages is not None:
                     messages = slash_result.messages
                 if slash_result.output:
                     console.print(slash_result.output)
+                if slash_result.new_model:
+                    model = slash_result.new_model
+                    # Re-create provider if model or provider changed
+                    provider = ProviderRegistry.create(config.default_provider, config)
+                    ctx_mgr = ContextManager(provider, model=model)
                 if slash_result.done:
                     console.print("[dim]Goodbye.[/dim]")
                     break
@@ -379,7 +384,6 @@ async def _chat_loop(
                 _print_status(model, messages)
                 console.print()
                 continue
-
             # Shell escape shortcut
             if stripped.startswith("!"):
                 cmd = stripped[1:].strip()

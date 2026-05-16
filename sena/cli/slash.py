@@ -6,7 +6,7 @@ control the session (clear history, compact context, etc.).
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Awaitable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -14,7 +14,7 @@ from rich.table import Table
 
 from sena.core.models import Message
 
-SlashHandler = Callable[[list[Message], str, "SlashRegistry"], "SlashResult"]
+SlashHandler = Callable[[list[Message], str, "SlashRegistry"], Awaitable["SlashResult"]]
 
 
 @dataclass
@@ -27,6 +27,8 @@ class SlashResult:
     """Text or Rich renderable to print to the user."""
     done: bool = False
     """If True, exit the chat loop."""
+    new_model: str | None = None
+    """Signal to switch the current session model."""
 
 
 @dataclass
@@ -62,7 +64,7 @@ class SlashRegistry:
         for alias in aliases:
             self._commands[alias] = cmd
 
-    def dispatch(self, messages: list[Message], raw_input: str) -> SlashResult | None:
+    async def dispatch(self, messages: list[Message], raw_input: str) -> SlashResult | None:
         """Parse and run a slash command.
 
         Returns ``None`` if the input is not a recognised slash command.
@@ -80,7 +82,7 @@ class SlashRegistry:
         # Snapshot current state for undo before executing
         self._history.append([m.model_copy() for m in messages])
         self._redo_stack.clear()
-        return cmd.handler(messages, args, self)
+        return await cmd.handler(messages, args, self)
 
     def help_table(self) -> Table:
         """Return a Rich Table of all registered commands."""
@@ -164,7 +166,7 @@ class SlashRegistry:
 # ---------------------------------------------------------------------- #
 
 
-def _cmd_clear(messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
+async def _cmd_clear(messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
     system = [m for m in messages if m.role == "system"]
     return SlashResult(
         messages=system,
@@ -172,7 +174,7 @@ def _cmd_clear(messages: list[Message], _args: str, _registry: SlashRegistry) ->
     )
 
 
-def _cmd_compact(messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
+async def _cmd_compact(messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
     system = [m for m in messages if m.role == "system"]
     return SlashResult(
         messages=system
@@ -186,25 +188,74 @@ def _cmd_compact(messages: list[Message], _args: str, _registry: SlashRegistry) 
     )
 
 
-def _cmd_help(_messages: list[Message], _args: str, registry: SlashRegistry) -> SlashResult:
+async def _cmd_help(_messages: list[Message], _args: str, registry: SlashRegistry) -> SlashResult:
     return SlashResult(output=registry.help_table())
 
 
-def _cmd_debug(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
+async def _cmd_debug(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
     return SlashResult(output="[dim]Debug mode toggled (not yet implemented).[/dim]")
 
 
-def _cmd_model(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
-    if args.strip():
-        return SlashResult(output="[dim]Switching model is not yet implemented.[/dim]")
-    return SlashResult(output="[dim]Current model: (not yet implemented).[/dim]")
+async def _cmd_model(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+    from sena.cli.models import _get_models, _update_config
+    from sena.config.settings import SenaConfig
+    from sena.providers.registry import ProviderRegistry
+    from rich.prompt import Prompt, Confirm
+    from rich.panel import Panel
+
+    config = SenaConfig()
+    
+    # 1. Select Provider
+    providers = ProviderRegistry.available()
+    from sena.cli.main import console
+    console.print(Panel("🤖 [bold blue]Model Selection Wizard[/bold blue]", border_style="blue"))
+    console.print(f"\nAvailable providers: [cyan]{', '.join(providers)}[/cyan]")
+    selected_provider = Prompt.ask(
+        "Select a provider",
+        choices=providers,
+        default=config.default_provider,
+    )
+
+    # 2. Fetch and Select Model
+    console.print(f"Fetching models for [bold]{selected_provider}[/bold]...")
+    model_ids = await _get_models(selected_provider, config)
+    
+    if not model_ids:
+        console.print(f"[yellow]No models returned for {selected_provider}.[/yellow]")
+        selected_model = Prompt.ask("Enter model ID manually")
+    else:
+        table = Table(title=f"Available Models — {selected_provider}")
+        table.add_column("ID", style="cyan")
+        for m in model_ids:
+            table.add_row(m)
+        console.print(table)
+        
+        selected_model = Prompt.ask(
+            "Select a model ID",
+            choices=model_ids,
+            default=model_ids[0] if model_ids else "",
+        )
+
+    # 3. Apply changes
+    console.print(f"\nYou selected: [bold green]{selected_provider} / {selected_model}[/bold green]")
+    
+    persist = Confirm.ask("Set as global default?")
+    if persist:
+        _update_config("default_provider", selected_provider)
+        _update_config("default_model", selected_model)
+        console.print("[green]Global configuration updated.[/green]")
+
+    return SlashResult(
+        output=f"[bold green]Session model switched to: {selected_model}[/bold green]",
+        new_model=selected_model
+    )
 
 
-def _cmd_cost(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
+async def _cmd_cost(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
     return SlashResult(output="[dim]Cost tracking (tokens) is not yet implemented.[/dim]")
 
 
-def _cmd_mode(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+async def _cmd_mode(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
     mode = args.strip().lower()
     if not mode:
         # Check if we have a mode stored in the system prompt
@@ -256,7 +307,7 @@ def _cmd_mode(messages: list[Message], args: str, _registry: SlashRegistry) -> S
     )
 
 
-def _cmd_undo(_messages: list[Message], _args: str, registry: SlashRegistry) -> SlashResult:
+async def _cmd_undo(_messages: list[Message], _args: str, registry: SlashRegistry) -> SlashResult:
     """Restore the previous message state from history."""
     if not registry._history:
         return SlashResult(output="[dim]Nothing to undo.[/dim]")
@@ -268,7 +319,7 @@ def _cmd_undo(_messages: list[Message], _args: str, registry: SlashRegistry) -> 
     )
 
 
-def _cmd_redo(_messages: list[Message], _args: str, registry: SlashRegistry) -> SlashResult:
+async def _cmd_redo(_messages: list[Message], _args: str, registry: SlashRegistry) -> SlashResult:
     """Restore a previously undone message state."""
     if not registry._redo_stack:
         return SlashResult(output="[dim]Nothing to redo.[/dim]")
@@ -280,7 +331,7 @@ def _cmd_redo(_messages: list[Message], _args: str, registry: SlashRegistry) -> 
     )
 
 
-def _cmd_export(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+async def _cmd_export(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
     """Serialize conversation to JSON file."""
     import json
     from pathlib import Path
@@ -291,7 +342,7 @@ def _cmd_export(_messages: list[Message], args: str, _registry: SlashRegistry) -
     return SlashResult(output=f"[dim]Exported {len(_messages)} messages to {path}.[/dim]")
 
 
-def _cmd_import(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+async def _cmd_import(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
     """Load conversation from JSON file."""
     import json
     from pathlib import Path

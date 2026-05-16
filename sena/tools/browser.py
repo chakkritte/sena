@@ -7,7 +7,7 @@ import base64
 from typing import Any, Literal
 
 import structlog
-from playwright.async_api import async_playwright  # type: ignore
+from playwright.async_api import async_playwright
 
 from sena.core.base import BaseTool
 from sena.core.models import ToolResult

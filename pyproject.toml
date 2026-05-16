@@ -56,6 +56,8 @@ dependencies = [
     "tomli-w>=1.2.0",
     "ddgs>=9.14.4",
     "mcp>=1.27.1",
+    "fastapi>=0.136.1",
+    "uvicorn>=0.47.0",
 ]
 
 [project.optional-dependencies]

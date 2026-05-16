@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from ddgs import DDGS  # type: ignore
+from ddgs import DDGS
 
 from sena.core.base import BaseTool
 from sena.core.models import ToolResult
