@@ -51,6 +51,19 @@ def _print_user(text: str) -> None:
     )
 
 
+def _print_shell_escape(text: str) -> None:
+    console.print(
+        Panel(
+            # Strip the ! and add $
+            Text(f"$ {text[1:].strip()}", style="bold magenta"),
+            border_style="magenta",
+            title="[bold]shell[/bold]",
+            title_align="left",
+            padding=(0, 1),
+        )
+    )
+
+
 def _print_assistant(text: str) -> None:
     console.print(
         Panel(
@@ -326,7 +339,7 @@ async def _chat_loop(
         if stripped.startswith("!"):
             cmd = stripped[1:].strip()
             if cmd:
-                _print_user(stripped)
+                _print_shell_escape(stripped)
                 result = await tools.execute("shell", {"command": cmd})
                 _print_tool("shell", result.content, is_error=result.is_error)
                 # Add to history so agent can see it if next message refers to it
