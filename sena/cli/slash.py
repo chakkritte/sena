@@ -152,6 +152,11 @@ class SlashRegistry:
             "Import conversation history from a JSON file.",
             _cmd_import,
         )
+        self.register(
+            "mode",
+            "Switch agent mode (normal, plan, code, review, qa, docs).",
+            _cmd_mode,
+        )
 
 
 # ---------------------------------------------------------------------- #
@@ -197,6 +202,58 @@ def _cmd_model(_messages: list[Message], args: str, _registry: SlashRegistry) ->
 
 def _cmd_cost(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
     return SlashResult(output="[dim]Cost tracking (tokens) is not yet implemented.[/dim]")
+
+
+def _cmd_mode(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+    mode = args.strip().lower()
+    if not mode:
+        # Check if we have a mode stored in the system prompt
+        current = "normal"
+        for m in messages:
+            if m.role == "system" and "AGENT MODE:" in (m.content or ""):
+                current = m.content.split("AGENT MODE:")[1].split("\n")[0].strip() if m.content else "normal"
+        return SlashResult(output=f"[dim]Current mode: {current}[/dim]")
+
+    valid_modes = ["normal", "plan", "code", "review", "qa", "docs"]
+    if mode not in valid_modes:
+        return SlashResult(output=f"[red]Invalid mode: {mode}.[/red] Valid: {', '.join(valid_modes)}")
+
+    # Update system prompt to change the agent's persona
+    new_messages = []
+    from sena.agents.base import ReactAgent
+    from sena.agents.planner import PlannerAgent
+    from sena.agents.coding import CodingAgent
+    from sena.agents.review import ReviewAgent
+    from sena.agents.qa import QAAgent
+    from sena.agents.docs import DocsAgent
+
+    # Define prompts for each mode
+    prompts = {
+        "normal": "You are Sena, an AI software engineering assistant. Think step by step, then use tools when needed.",
+        "plan": "You are a technical project planner. Break the user's request into clear, actionable steps. Each step should be specific and verifiable.",
+        "code": "You are a senior software engineer. Write, edit, and review code using file and shell tools. Follow best practices.",
+        "review": "You are a senior code reviewer. Review the provided code for correctness, performance, security, and style.",
+        "qa": "You are an expert QA Engineer. Your goal is to ensure code quality through testing. Write robust test cases using pytest.",
+        "docs": "You are a technical writer and documentation expert. Keep the project's documentation clear, accurate, and up-to-date.",
+    }
+
+    new_prompt = f"{prompts.get(mode)}\n\nAGENT MODE: {mode}"
+    
+    # Replace or add system prompt
+    found_system = False
+    for m in messages:
+        if m.role == "system":
+            m.content = new_prompt
+            found_system = True
+        new_messages.append(m)
+    
+    if not found_system:
+        new_messages.insert(0, Message(role="system", content=new_prompt))
+
+    return SlashResult(
+        messages=new_messages,
+        output=f"[bold green]Mode switched to: {mode}[/bold green]",
+    )
 
 
 def _cmd_undo(_messages: list[Message], _args: str, registry: SlashRegistry) -> SlashResult:
