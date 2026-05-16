@@ -286,7 +286,7 @@ async def _chat_loop(
     tools.register(WebSearchTool())
     
     # Register MCP tools
-    mcp_clients = asyncio.run(register_mcp_tools(tools, config))
+    mcp_clients = await register_mcp_tools(tools, config)
     
     slash = SlashRegistry()
     ctx_mgr = ContextManager(provider, model=model)
