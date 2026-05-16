@@ -121,6 +121,24 @@ sena config default_provider ollama
 sena config default_model llama3.2
 ```
 
+### Model Context Protocol (MCP)
+
+Sena supports external tools via the Model Context Protocol. You can configure MCP servers in your `config.toml`:
+
+```toml
+[mcp_servers.filesystem]
+transport = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/search"]
+
+[mcp_servers.postgres]
+transport = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/mydb"]
+```
+
+**Auto-Support for Ollama**: When the default provider is set to `ollama`, Sena automatically attempts to connect to the [ollama-web-tools-mcp](https://github.com/chakkritte/ollama-web-tools-mcp) server if it's available via `npx`.
+
 ## Quick Start
 
 ```bash
