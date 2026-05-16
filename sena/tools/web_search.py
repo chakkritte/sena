@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
-import httpx
+import structlog
+from ddgs import DDGS  # type: ignore
 
 from sena.core.base import BaseTool
 from sena.core.models import ToolResult
+
+logger = structlog.get_logger()
 
 
 class WebSearchTool(BaseTool):
@@ -17,7 +19,7 @@ class WebSearchTool(BaseTool):
     name = "web_search"
     description = (
         "Search the web for a query and return top results with title, URL, and snippet. "
-        "Uses DuckDuckGo HTML API (no API key required)."
+        "Uses DuckDuckGo API (no API key required)."
     )
     input_schema = {
         "type": "object",
@@ -50,6 +52,7 @@ class WebSearchTool(BaseTool):
         try:
             results = await self._search(query, max_results)
         except Exception as e:
+            logger.exception("web_search.error", query=query)
             return ToolResult(
                 tool_call_id="",
                 name=self.name,
@@ -77,62 +80,26 @@ class WebSearchTool(BaseTool):
         )
 
     async def _search(self, query: str, max_results: int) -> list[dict[str, str]]:
-        """Fetch HTML from DuckDuckGo and parse results."""
-        url = "https://html.duckduckgo.com/html/"
-        params = {"q": query}
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
-        }
-
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-            resp = await client.get(url, params=params, headers=headers)
-            resp.raise_for_status()
-            html = resp.text
-
+        """Fetch results using ddgs library."""
         results: list[dict[str, str]] = []
-        # Parse DuckDuckGo HTML result blocks
-        result_blocks = re.findall(
-            r'<div class="result__body">(.*?</div>\s*</div>)',
-            html,
-            re.DOTALL,
-        )
+        
+        # DDGS is synchronous, but we can run it in a thread pool to avoid blocking
+        import asyncio
+        from functools import partial
 
-        for block in result_blocks[:max_results]:
-            title_match = re.search(
-                r'<a[^>]*class="result__a"[^>]*>(.*?)</a>', block, re.DOTALL
-            )
-            url_match = re.search(
-                r'<a[^>]*class="result__a"[^>]*href="([^"]*)"', block
-            )
-            snippet_match = re.search(
-                r'<a[^>]*class="result__snippet"[^>]*>(.*?)</a>',
-                block,
-                re.DOTALL,
-            )
+        def _fetch() -> list[dict[str, str]]:
+            with DDGS() as ddgs:
+                # Use list comprehension to consume the generator
+                return [r for r in ddgs.text(query, max_results=max_results)]
 
-            title = self._strip_tags(title_match.group(1)) if title_match else "No title"
-            result_url = (
-                "https://duckduckgo.com" + url_match.group(1)
-                if url_match and url_match.group(1).startswith("/")
-                else (url_match.group(1) if url_match else "")
-            )
-            snippet = (
-                self._strip_tags(snippet_match.group(1)) if snippet_match else ""
-            )
+        loop = asyncio.get_event_loop()
+        ddg_results = await loop.run_in_executor(None, _fetch)
 
-            if result_url:
-                results.append({"title": title, "url": result_url, "snippet": snippet})
+        for r in ddg_results:
+            results.append({
+                "title": r.get("title", "No title"),
+                "url": r.get("href", ""),
+                "snippet": r.get("body", ""),
+            })
 
         return results
-
-    @staticmethod
-    def _strip_tags(text: str) -> str:
-        """Remove HTML tags and decode entities."""
-        clean = re.sub(r"<[^>]+>", "", text)
-        clean = clean.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
-        clean = clean.replace("&quot;", '"').replace("&#39;", "'")
-        return " ".join(clean.split())
