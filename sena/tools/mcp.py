@@ -190,11 +190,15 @@ async def register_mcp_tools(registry: ToolRegistry, config: SenaConfig) -> list
     # and not already configured.
     if config.default_provider == "ollama" and "ollama-web-tools" not in config.mcp_servers:
         try:
-            # Use the github repository directly for npx to avoid 404 on registry
+            # This is a Python project. We use 'uv run' to run it directly from GitHub.
             client = MCPClient(
                 transport="stdio",
-                command="npx",
-                args=["-y", "github:chakkritte/ollama-web-tools-mcp"],
+                command="uv",
+                args=[
+                    "run",
+                    "--with", "git+https://github.com/chakkritte/ollama-web-tools-mcp.git",
+                    "python", "-m", "ollama_web_tools_mcp"
+                ],
             )
             await client.connect()
             tools = await client.list_tools()
