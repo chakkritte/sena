@@ -97,14 +97,33 @@ def _print_tool(name: str, result: str, is_error: bool = False) -> None:
 
 
 def _print_status(model: str, messages: list[Message]) -> None:
+    import os
+
+    # Extract mode from system prompt
+    mode = "normal"
+    for m in messages:
+        if m.role == "system" and m.content and "AGENT MODE:" in m.content:
+            mode = m.content.split("AGENT MODE:")[1].split("\n")[0].strip()
+            break
+
+    cwd = os.getcwd()
+    # Compact home path
+    home = str(Path.home())
+    if cwd.startswith(home):
+        cwd = cwd.replace(home, "~", 1)
+
     total = TokenCounter.count_messages(messages)
     max_total = 128_000
     pct = min(100, int((total / max_total) * 100)) if max_total > 0 else 0
     color = "green" if pct < 60 else "yellow" if pct < 85 else "red"
     bar_filled = int(pct / 5)
     bar = f"[{'=' * bar_filled}{' ' * (20 - bar_filled)}]"
+
     status = (
-        f"[dim]{model}[/dim] | Context: [{color}]{bar}[/] "
+        f"[bold cyan]{mode.upper()}[/bold cyan] | "
+        f"[dim]{cwd}[/dim] | "
+        f"[dim]{model}[/dim] | "
+        f"Context: [{color}]{bar}[/] "
         f"[{color}]{pct}%[/] ({total:,}/{max_total:,})"
     )
     console.print(status, style="dim")
