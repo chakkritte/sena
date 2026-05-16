@@ -132,6 +132,8 @@ class SenaConfig(BaseSettings):
     # General
     default_provider: str = "ollama"
     default_model: str = "llama3.2"
+    api_key: str | None = None
+    base_url: str | None = None
     temperature: float = 0.7
     max_tokens: int | None = None
 
@@ -201,7 +203,17 @@ class SenaConfig(BaseSettings):
             "openrouter": self.openrouter,
             "deepseek": self.deepseek,
         }
-        return mapping.get(name.lower(), ProviderCredential())
+        cred = mapping.get(name.lower(), ProviderCredential())
+        
+        # Fallback to top-level fields if not specified in the provider block
+        if cred.api_key is None and name.lower() == self.default_provider.lower():
+            cred.api_key = self.api_key
+        if cred.base_url is None and name.lower() == self.default_provider.lower():
+            cred.base_url = self.base_url
+        if cred.default_model is None and name.lower() == self.default_provider.lower():
+            cred.default_model = self.default_model
+            
+        return cred
 
     @staticmethod
     def user_dir() -> Path:

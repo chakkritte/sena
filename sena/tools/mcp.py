@@ -200,8 +200,9 @@ async def register_mcp_tools(registry: ToolRegistry, config: SenaConfig) -> list
     if config.default_provider == "ollama" and "ollama-web-tools" not in config.mcp_servers:
         try:
             mcp_env = {}
-            if config.ollama.api_key:
-                mcp_env["OLLAMA_API_KEY"] = config.ollama.api_key
+            ollama_config = config.get_provider_config("ollama")
+            if ollama_config.api_key:
+                mcp_env["OLLAMA_API_KEY"] = ollama_config.api_key
 
             # This is a Python project. We use 'uv run' to run it directly from GitHub.
             client = MCPClient(
