@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -14,21 +16,52 @@ from sena.cli.main import app
 
 console = Console()
 
+
+def _find_sena_repo() -> Path | None:
+    """Find the Sena source directory via importlib."""
+    spec = importlib.util.find_spec("sena")
+    if spec is None or spec.origin is None:
+        return None
+    # spec.origin points to sena/__init__.py; go up one level to the repo root
+    repo = Path(spec.origin).resolve().parent.parent
+    if (repo / ".git").exists():
+        return repo
+    return None
+
+
 @app.command(name="update")
 def update_sena() -> None:
     """Update Sena to the latest version from GitHub."""
-    console.print(Panel("🚀 [bold blue]Starting Sena Auto-Update[/bold blue]", border_style="blue"))
-    
-    # 1. Verify we are in a git repository
-    if not Path(".git").exists():
-        console.print("[red]Error:[/red] Not a git repository. Cannot update automatically.")
+    console.print(
+        Panel("🚀 [bold blue]Starting Sena Auto-Update[/bold blue]", border_style="blue")
+    )
+
+    # 1. Try to auto-discover Sena repo; fall back to current directory
+    repo = _find_sena_repo()
+    cwd = Path.cwd()
+    if repo is None and (cwd / ".git").exists():
+        repo = cwd
+
+    if repo is None:
+        console.print(
+            "[red]Error:[/red] Could not find Sena git repository. "
+            "Please run `sena update` from the Sena project directory."
+        )
         raise typer.Exit(1)
+
+    if repo != cwd:
+        console.print(f"[dim]Switching to {repo} ...[/dim]")
+        os.chdir(repo)
 
     try:
         # 2. Check for local changes
-        status = subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain"], text=True
+        ).strip()
         if status:
-            console.print("[yellow]Warning:[/yellow] You have uncommitted changes.")
+            console.print(
+                "[yellow]Warning:[/yellow] You have uncommitted changes."
+            )
             confirm = typer.confirm("Stash changes and proceed with update?")
             if not confirm:
                 console.print("Update cancelled.")
@@ -42,14 +75,24 @@ def update_sena() -> None:
 
         # 4. Sync dependencies
         console.print("Syncing dependencies with [bold]uv[/bold]...")
-        # We assume uv is installed as it's the primary way to manage the project
         try:
             subprocess.check_call(["uv", "sync"])
         except (subprocess.CalledProcessError, FileNotFoundError):
-            console.print("[yellow]Warning:[/yellow] 'uv sync' failed or uv not found. Trying 'pip install -e .'...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", "."])
+            console.print(
+                "[yellow]Warning:[/yellow] 'uv sync' failed or uv not found. "
+                "Trying 'pip install -e .'..."
+            )
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "-e", "."]
+            )
 
-        console.print(Panel("[green]✔ Update successful![/green]\nSena is now at the latest version.", border_style="green"))
+        console.print(
+            Panel(
+                "[green]✔ Update successful![/green]\n"
+                "Sena is now at the latest version.",
+                border_style="green",
+            )
+        )
 
     except subprocess.CalledProcessError as e:
         console.print(f"[red]Error during update:[/red] {e}")
