@@ -117,4 +117,17 @@ def init_persona() -> None:
         tomli_w.dump({"persona": persona}, f)
 
     console.print(f"\n[green]Success![/green] Persona saved to [bold]{persona_path}[/bold]")
-    console.print("Sena will now use this persona for all future interactions.")
+    
+    if Confirm.ask("\nWould you like to create a project-specific [bold]SENA.md[/bold] in the current directory?"):
+        sena_md = Path("SENA.md")
+        if sena_md.exists():
+            if not Confirm.ask("SENA.md already exists. Overwrite?"):
+                console.print("[yellow]Skipped SENA.md creation.[/yellow]")
+            else:
+                sena_md.write_text("# Project Instructions\n\n- Add your project-specific conventions here.\n", encoding="utf-8")
+                console.print("[green]SENA.md updated.[/green]")
+        else:
+            sena_md.write_text("# Project Instructions\n\n- Add your project-specific conventions here.\n", encoding="utf-8")
+            console.print("[green]SENA.md created.[/green]")
+
+    console.print("Sena will now use this persona and context for all future interactions.")

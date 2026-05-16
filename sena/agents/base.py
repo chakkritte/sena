@@ -78,9 +78,13 @@ class ReactAgent(BaseAgent):
     async def run(self, task: str, context: dict[str, Any] | None = None) -> str:
         from sena.telemetry.otel import trace_span
         from sena.config.settings import SenaConfig
+        from sena.context.instructions import InstructionTierManager
 
         # Load dynamic context
         config = SenaConfig()
+        itm = InstructionTierManager()
+        instruction_context = itm.aggregate()
+        
         persona_str = ""
         if config.persona:
             persona_str = "\n\nYOUR PERSONA AND PREFERENCES:\n" + "\n".join(
@@ -95,6 +99,8 @@ class ReactAgent(BaseAgent):
             )
 
         full_system_prompt = self.system_prompt + persona_str + rules_str
+        if instruction_context:
+            full_system_prompt += "\n\nWORKSPACE CONTEXT & INSTRUCTIONS:\n" + instruction_context
 
         with trace_span(f"agent.{self.name}.run", attributes={"task": task[:100]}):
             ctx = AgentContext(
@@ -214,11 +220,19 @@ class ReactAgent(BaseAgent):
         self, task: str, context: dict[str, Any] | None = None
     ) -> AsyncIterator[str]:
         """Stream the agent's reasoning and tool results as text."""
+        from sena.context.instructions import InstructionTierManager
+        itm = InstructionTierManager()
+        instruction_context = itm.aggregate()
+        
+        full_system_prompt = self.system_prompt
+        if instruction_context:
+            full_system_prompt += "\n\nWORKSPACE CONTEXT & INSTRUCTIONS:\n" + instruction_context
+
         ctx = AgentContext(
             provider=self.provider,
             tools=ToolRegistry(),
             memory=self.memory,
-            system_prompt=self.system_prompt,
+            system_prompt=full_system_prompt,
             model=self.model,
             max_iterations=self.max_iterations,
         )

@@ -37,8 +37,17 @@ from sena.ui.streaming import StreamingDisplay
 
 
 def _build_system_prompt(config: SenaConfig) -> str:
+    from sena.context.instructions import InstructionTierManager
+    itm = InstructionTierManager()
+    instruction_context = itm.aggregate()
+    
     template = PromptTemplate()
-    return template.render("system", context={"config": config.model_dump()})
+    system_prompt = template.render("system", context={"config": config.model_dump()})
+    
+    if instruction_context:
+        system_prompt += "\n\nWORKSPACE CONTEXT & INSTRUCTIONS:\n" + instruction_context
+        
+    return system_prompt
 
 
 def _print_user(text: str) -> None:
@@ -304,6 +313,16 @@ async def _chat_loop(
     tools.register(GitHubTool())
     tools.register(FileSearchTool())
     tools.register(WebSearchTool())
+    
+    # Advanced Tools
+    from sena.tools.agent import InvokeAgentTool
+    from sena.tools.skill import ActivateSkillTool
+    from sena.tools.plan import EnterPlanModeTool
+    from sena.tools.ui import UpdateTopicTool
+    tools.register(InvokeAgentTool(provider, memory, tools.list_tools(), model=model))
+    tools.register(ActivateSkillTool())
+    tools.register(EnterPlanModeTool())
+    tools.register(UpdateTopicTool())
     
     # Register MCP tools
     mcp_clients = await register_mcp_tools(tools, config)
