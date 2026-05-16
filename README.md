@@ -13,7 +13,7 @@ Sena is an AI-native runtime and orchestration system for autonomous software en
 - **Multi-Agent Orchestration**: Supervisor agent that coordinates plan -> code -> review workflows
 - **Context Management**: Token budgeting, conversation summarization, and sliding window trimming
 - **Docker Sandbox**: Isolated command execution with configurable resource limits
-- **Terminal-Native UX**: Rich CLI + full-screen Textual TUI
+- **Terminal-Native UX**: Rich CLI + full-screen Textual TUI with `!` shell escape shortcut
 - **Web Dashboard**: FastAPI-based web UI with SSE streaming
 - **Agent Snapshots**: Save and restore agent execution state
 - **Worker Pools**: Remote agent worker pools with priority task queue
@@ -126,6 +126,7 @@ sena config default_model llama3.2
 ```bash
 # Interactive chat with tool use
 sena chat --provider ollama --model llama3.2
+# Inside chat, use !ls to run shell commands
 
 # One-shot task execution
 sena run "Refactor auth.py to use async/await" --provider openai
