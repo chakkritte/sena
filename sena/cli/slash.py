@@ -6,8 +6,9 @@ control the session (clear history, compact context, etc.).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from rich.table import Table
@@ -160,6 +161,16 @@ class SlashRegistry:
             _cmd_mode,
         )
         self.register(
+            "editor",
+            "Open $EDITOR to compose a multi-line message.",
+            _cmd_editor,
+        )
+        self.register(
+            "history",
+            "Search and re-use previous messages from chat history.",
+            _cmd_history,
+        )
+        self.register(
             "init",
             "Initialize a project-specific SENA.md file.",
             _cmd_init,
@@ -180,7 +191,7 @@ async def _cmd_init(messages: list[Message], _args: str, _registry: SlashRegistr
         "3. Create a comprehensive SENA.md file in the root directory summarizing these findings.\n"
         "The SENA.md should serve as the primary instruction manual for future AI engineering sessions."
     )
-    
+
     return SlashResult(
         messages=messages + [Message(role="user", content=prompt)],
         output=(
@@ -222,14 +233,15 @@ async def _cmd_debug(_messages: list[Message], _args: str, _registry: SlashRegis
 
 
 async def _cmd_model(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+
     from sena.cli.models import _get_models, _update_config
     from sena.config.settings import SenaConfig
     from sena.providers.registry import ProviderRegistry
-    from rich.prompt import Prompt, Confirm
-    from rich.panel import Panel
 
     config = SenaConfig()
-    
+
     # 1. Select Provider
     providers = ProviderRegistry.available()
     from sena.cli.main import console
@@ -244,7 +256,7 @@ async def _cmd_model(_messages: list[Message], args: str, _registry: SlashRegist
     # 2. Fetch and Select Model
     console.print(f"Fetching models for [bold]{selected_provider}[/bold]...")
     model_ids = await _get_models(selected_provider, config)
-    
+
     if not model_ids:
         console.print(f"[yellow]No models returned for {selected_provider}.[/yellow]")
         selected_model = Prompt.ask("Enter model ID manually")
@@ -254,7 +266,7 @@ async def _cmd_model(_messages: list[Message], args: str, _registry: SlashRegist
         for m in model_ids:
             table.add_row(m)
         console.print(table)
-        
+
         selected_model = Prompt.ask(
             "Select a model ID",
             choices=model_ids,
@@ -263,7 +275,7 @@ async def _cmd_model(_messages: list[Message], args: str, _registry: SlashRegist
 
     # 3. Apply changes
     console.print(f"\nYou selected: [bold green]{selected_provider} / {selected_model}[/bold green]")
-    
+
     persist = Confirm.ask("Set as global default?")
     if persist:
         _update_config("default_provider", selected_provider)
@@ -296,12 +308,6 @@ async def _cmd_mode(messages: list[Message], args: str, _registry: SlashRegistry
 
     # Update system prompt to change the agent's persona
     new_messages = []
-    from sena.agents.base import ReactAgent
-    from sena.agents.planner import PlannerAgent
-    from sena.agents.coding import CodingAgent
-    from sena.agents.review import ReviewAgent
-    from sena.agents.qa import QAAgent
-    from sena.agents.docs import DocsAgent
 
     # Define prompts for each mode
     prompts = {
@@ -314,7 +320,7 @@ async def _cmd_mode(messages: list[Message], args: str, _registry: SlashRegistry
     }
 
     new_prompt = f"{prompts.get(mode)}\n\nAGENT MODE: {mode}"
-    
+
     # Replace or add system prompt
     found_system = False
     for m in messages:
@@ -322,7 +328,7 @@ async def _cmd_mode(messages: list[Message], args: str, _registry: SlashRegistry
             m.content = new_prompt
             found_system = True
         new_messages.append(m)
-    
+
     if not found_system:
         new_messages.insert(0, Message(role="system", content=new_prompt))
 
@@ -381,3 +387,99 @@ async def _cmd_import(_messages: list[Message], args: str, _registry: SlashRegis
         messages=loaded,
         output=f"[dim]Imported {len(loaded)} messages from {path}.[/dim]",
     )
+
+
+async def _cmd_editor(
+    messages: list[Message], _args: str, _registry: SlashRegistry
+) -> SlashResult:
+    """Open $EDITOR to compose a multi-line message."""
+    import asyncio
+    import os
+    import tempfile
+
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "nano"
+    with tempfile.NamedTemporaryFile(
+        mode="w+", suffix=".txt", delete=False, encoding="utf-8"
+    ) as f:
+        f.write("\n# Write your message above this line.\n")
+        temp_path = f.name
+
+    try:
+        proc = await asyncio.create_subprocess_exec(editor, temp_path)
+        await proc.wait()
+        content = await asyncio.to_thread(
+            Path(temp_path).read_text, encoding="utf-8"
+        )
+        # Remove comment lines
+        lines = [line for line in content.splitlines() if not line.strip().startswith("#")]
+        text = "\n".join(lines).strip()
+        if not text:
+            return SlashResult(output="[dim]No message entered.[/dim]")
+        return SlashResult(
+            messages=messages + [Message(role="user", content=text)],
+            output="[dim]Message composed in editor.[/dim]",
+        )
+    finally:
+        await asyncio.to_thread(Path(temp_path).unlink, missing_ok=True)
+
+
+async def _cmd_history(
+    _messages: list[Message], args: str, _registry: SlashRegistry
+) -> SlashResult:
+    """Search and re-use a previous message from chat history."""
+    from rich.prompt import Prompt
+
+    history_path = Path.home() / ".config" / "sena" / "chat_history"
+    if not history_path.exists():
+        return SlashResult(output="[dim]No history file found.[/dim]")
+
+    raw_lines = history_path.read_text(encoding="utf-8").splitlines()
+    # Filter out empty lines and deduplicate while preserving order
+    seen: set[str] = set()
+    entries: list[str] = []
+    for line in raw_lines:
+        line = line.strip()
+        if line and line not in seen:
+            seen.add(line)
+            entries.append(line)
+
+    if not entries:
+        return SlashResult(output="[dim]No history entries found.[/dim]")
+
+    query = args.strip().lower()
+    matches = (
+        [e for e in entries if query in e.lower()]
+        if query
+        else list(reversed(entries[-20:]))
+    )
+
+    if not matches:
+        return SlashResult(output=f"[dim]No history matches for '{query}'.[/dim]")
+
+    # Display matches
+    from sena.cli.main import console
+    console.print("[dim]Select a message to reuse:[/dim]")
+    for i, entry in enumerate(matches[:20], 1):
+        preview = entry[:80] + "..." if len(entry) > 80 else entry
+        console.print(f"  [cyan]{i:2}[/cyan]. {preview}")
+
+    choice = Prompt.ask(
+        "Enter number (or leave empty to cancel)",
+        default="",
+        show_default=False,
+    )
+    if not choice.strip():
+        return SlashResult(output="[dim]Cancelled.[/dim]")
+
+    try:
+        idx = int(choice.strip()) - 1
+        if 0 <= idx < len(matches):
+            selected = matches[idx]
+            return SlashResult(
+                messages=_messages + [Message(role="user", content=selected)],
+                output=f"[dim]Reused: {selected[:60]}...[/dim]",
+            )
+    except ValueError:
+        pass
+
+    return SlashResult(output="[dim]Invalid selection.[/dim]")

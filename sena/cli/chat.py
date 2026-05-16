@@ -3,21 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import readline
 from pathlib import Path
 from typing import Any
 
 import typer
-from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.prompt import Confirm
-from rich.text import Text
 
 from sena.cli.main import app, console
 from sena.cli.slash import SlashRegistry
 from sena.config.settings import SenaConfig
-from sena.context.manager import ContextManager, TokenCounter
+from sena.context.manager import ContextManager
 from sena.core.models import CompletionRequest, Message, ToolCall
 from sena.memory.sqlite import SQLiteMemory
 from sena.prompts.base import PromptTemplate
@@ -28,11 +25,11 @@ from sena.tools.file import FilePatchTool, FileReadTool, FileWriteTool
 from sena.tools.git import GitTool
 from sena.tools.github_cli import GitHubTool
 from sena.tools.mcp import register_mcp_tools
-from sena.tools.python_interpreter import PythonTool
 from sena.tools.search import FileSearchTool
 from sena.tools.shell import ShellTool
 from sena.tools.web_search import WebSearchTool
 from sena.ui.banner import print_banner
+from sena.ui.chat_renderer import ChatRenderer
 from sena.ui.streaming import StreamingDisplay
 
 
@@ -40,108 +37,129 @@ def _build_system_prompt(config: SenaConfig) -> str:
     from sena.context.instructions import InstructionTierManager
     itm = InstructionTierManager()
     instruction_context = itm.aggregate()
-    
+
     template = PromptTemplate()
     system_prompt = template.render("system", context={"config": config.model_dump()})
-    
+
     if instruction_context:
         system_prompt += "\n\nWORKSPACE CONTEXT & INSTRUCTIONS:\n" + instruction_context
-        
+
     return system_prompt
 
 
-def _print_user(text: str) -> None:
-    console.print(
-        Panel(
-            Text(text, style="bold blue"),
-            border_style="blue",
-            title="[bold]you[/bold]",
-            title_align="left",
-            padding=(0, 1),
-        )
-    )
+class DraftManager:
+    """Manages draft text preservation across interruptions."""
+
+    def __init__(self) -> None:
+        """Initialize draft manager with default path."""
+        self._draft_path = Path.home() / ".config" / "sena" / ".draft"
+        self._draft: str | None = None
+
+    def save(self, text: str) -> None:
+        """Save draft text to disk."""
+        self._draft_path.parent.mkdir(parents=True, exist_ok=True)
+        self._draft_path.write_text(text, encoding="utf-8")
+        self._draft = text
+
+    def load(self) -> str | None:
+        """Load draft text from disk."""
+        if self._draft is not None:
+            return self._draft
+        if self._draft_path.exists():
+            self._draft = self._draft_path.read_text(encoding="utf-8")
+            return self._draft
+        return None
+
+    def clear(self) -> None:
+        """Clear the current draft."""
+        self._draft = None
+        if self._draft_path.exists():
+            self._draft_path.unlink()
 
 
-def _print_shell_escape(text: str) -> None:
-    console.print(
-        Panel(
-            # Strip the ! and add $
-            Text(f"$ {text[1:].strip()}", style="bold magenta"),
-            border_style="magenta",
-            title="[bold]shell[/bold]",
-            title_align="left",
-            padding=(0, 1),
-        )
-    )
+def _read_input(console: Any, draft_manager: DraftManager) -> str:
+    r"""Read user input with multi-line support.
 
+    Supports:
+    - Backslash continuation (line ending with \)
+    - Triple-backtick code block auto-detection
+    - Empty line to send multi-line input
+    - Draft restoration from previous interruption
+    """
+    # Restore previous draft if any
+    draft = draft_manager.load()
+    if draft:
+        console.print("[dim]Restored draft (edit or press Enter to send):[/dim]")
+        # Pre-fill readline buffer with the draft
+        readline.set_startup_hook(lambda: readline.insert_text(draft))
+    else:
+        readline.set_startup_hook(None)
 
-def _print_assistant(text: str) -> None:
-    console.print(
-        Panel(
-            Markdown(text, code_theme="monokai"),
-            border_style="green",
-            title="[bold]Sena[/bold]",
-            title_align="left",
-            padding=(0, 1),
-        )
-    )
+    try:
+        first_line = str(console.input("[bold blue]> [/bold blue]"))
+    except KeyboardInterrupt:
+        draft_manager.clear()
+        readline.set_startup_hook(None)
+        raise
 
+    readline.set_startup_hook(None)
 
-def _print_tool(name: str, result: str, is_error: bool = False) -> None:
-    display = result[:1200]
-    if len(result) > 1200:
-        display += f"\n\n[dim]... {len(result) - 1200} more characters[/dim]"
-    color = "red" if is_error else "dim"
-    border = "red" if is_error else "yellow"
-    title = f"[bold {color}]{name}[/bold {color}]" if is_error else f"[bold]{name}[/bold]"
-    console.print(
-        Panel(
-            Text(display, style=color),
-            border_style=border,
-            title=title,
-            title_align="left",
-            padding=(0, 1),
-        )
-    )
+    stripped = first_line.strip()
 
+    # If it's a slash command, shell escape, or empty — return as-is (single line)
+    if not stripped or stripped.startswith("/") or stripped.startswith("!"):
+        draft_manager.clear()
+        return first_line
 
-def _print_status(model: str, messages: list[Message]) -> None:
-    import os
+    lines = [first_line]
+    in_code_block = stripped.startswith("```")
 
-    # Extract mode from system prompt
-    mode = "normal"
-    for m in messages:
-        if m.role == "system" and m.content and "AGENT MODE:" in m.content:
-            mode = m.content.split("AGENT MODE:")[1].split("\n")[0].strip()
-            break
+    while True:
+        # Check if we should continue reading
+        last_stripped = lines[-1].rstrip()
+        continuation = last_stripped.endswith("\\")
+        code_block_closed = in_code_block and last_stripped == "```" and len(lines) > 1
 
-    cwd = os.getcwd()
-    # Compact home path
-    home = str(Path.home())
-    if cwd.startswith(home):
-        cwd = cwd.replace(home, "~", 1)
+        if not continuation and not in_code_block and len(lines) == 1:
+            # Single line input — done
+            draft_manager.clear()
+            return first_line
 
-    total = TokenCounter.count_messages(messages)
-    max_total = 128_000
-    pct = min(100, int((total / max_total) * 100)) if max_total > 0 else 0
-    color = "green" if pct < 60 else "yellow" if pct < 85 else "red"
-    bar_filled = int(pct / 5)
-    bar = f"[{'=' * bar_filled}{' ' * (20 - bar_filled)}]"
+        if code_block_closed:
+            # Remove trailing ``` and return
+            draft_manager.clear()
+            return "\n".join(lines)
 
-    status = (
-        f"[bold cyan]{mode.upper()}[/bold cyan] | "
-        f"[dim]{cwd}[/dim] | "
-        f"[dim]{model}[/dim] | "
-        f"Context: [{color}]{bar}[/] "
-        f"[{color}]{pct}%[/] ({total:,}/{max_total:,})"
-    )
-    console.print(status, style="dim")
+        if continuation:
+            # Remove trailing backslash from the last line
+            lines[-1] = lines[-1].rstrip()[:-1]
+
+        # Prompt for next line
+        try:
+            next_line = str(console.input("[dim]... [/dim]"))
+        except KeyboardInterrupt:
+            # Save partial draft
+            draft_manager.save("\n".join(lines))
+            raise
+
+        if not next_line.strip() and not in_code_block and not continuation:
+            # Empty line in normal multi-line mode — finalize
+            draft_manager.clear()
+            return "\n".join(lines)
+
+        lines.append(next_line)
+
+        if in_code_block and next_line.strip() == "```":
+            # Code block closed
+            draft_manager.clear()
+            return "\n".join(lines)
 
 
 async def _execute_tools_with_approval(
     tool_calls: list[ToolCall],
     registry: ToolRegistry,
     config: SenaConfig,
+    renderer: ChatRenderer | None = None,
 ) -> list[Message]:
     """Execute tool calls with optional interactive approval."""
     results: list[Message] = []
@@ -151,11 +169,12 @@ async def _execute_tools_with_approval(
             from sena.cli.main import cli_approval_callback
             approved = await cli_approval_callback(tc.name, tc.arguments)
             if not approved:
-                _print_tool(
-                    tc.name,
-                    "User declined execution.",
-                    is_error=True,
-                )
+                if renderer:
+                    renderer.add_tool_result(
+                        tc.name,
+                        "User declined execution.",
+                        is_error=True,
+                    )
                 results.append(
                     Message(
                         role="tool",
@@ -166,7 +185,8 @@ async def _execute_tools_with_approval(
                 )
                 continue
         result = await registry.execute(tc.name, tc.arguments)
-        _print_tool(tc.name, result.content, is_error=result.is_error)
+        if renderer:
+            renderer.add_tool_result(tc.name, result.content, is_error=result.is_error)
         results.append(
             Message(
                 role="tool",
@@ -185,6 +205,7 @@ async def _run_agent_turn(
     model: str,
     config: SenaConfig,
     streaming: bool = True,
+    renderer: ChatRenderer | None = None,
 ) -> None:
     """Run one ReAct turn."""
     max_iterations = 10
@@ -200,12 +221,12 @@ async def _run_agent_turn(
         )
 
         if streaming:
-            # Stream into a live panel; it stays on screen when done
-            with StreamingDisplay(console, title="Sena") as stream:
+            if renderer:
+                renderer.start_assistant()
                 async for chunk in provider.stream(request):
                     if chunk.content:
                         content_parts.append(chunk.content)
-                        stream.append(chunk.content)
+                        renderer.append_stream(chunk.content)
                     if chunk.tool_call:
                         tc = chunk.tool_call
                         if tc.is_start:
@@ -214,11 +235,46 @@ async def _run_agent_turn(
                                 "name": tc.name or "",
                                 "arguments": "",
                             }
+                            renderer.add_tool_call(tc.name or "tool")
                         elif tc.arguments_delta:
                             if current_tool is not None:
                                 current_tool["arguments"] += tc.arguments_delta
                         elif tc.is_end:
                             if current_tool is not None:
+                                import json
+
+                                try:
+                                    args = json.loads(current_tool["arguments"])
+                                except json.JSONDecodeError:
+                                    args = {}
+                                tool_calls.append(
+                                    ToolCall(
+                                        id=current_tool["id"],
+                                        name=current_tool["name"],
+                                        arguments=args,
+                                    )
+                                )
+                                current_tool = None
+                renderer.end_assistant()
+            else:
+                # Fallback when no renderer is provided
+                with StreamingDisplay(console, title="Sena") as stream:
+                    async for chunk in provider.stream(request):
+                        if chunk.content:
+                            content_parts.append(chunk.content)
+                            stream.append(chunk.content)
+                        if chunk.tool_call:
+                            tc = chunk.tool_call
+                            if tc.is_start:
+                                current_tool = {
+                                    "id": tc.id or "",
+                                    "name": tc.name or "",
+                                    "arguments": "",
+                                }
+                            elif tc.arguments_delta:
+                                if current_tool is not None:
+                                    current_tool["arguments"] += tc.arguments_delta
+                            elif tc.is_end and current_tool is not None:
                                 import json
 
                                 try:
@@ -266,17 +322,23 @@ async def _run_agent_turn(
         )
         messages.append(assistant_msg)
 
-        # Only print assistant panel if non-streaming
-        if not streaming and assistant_content:
-            _print_assistant(assistant_content)
+        if not streaming and assistant_content and renderer:
+            renderer.start_assistant()
+            renderer.append_stream(assistant_content)
+            renderer.end_assistant()
 
         if not tool_calls:
             break
 
-        result_msgs = await _execute_tools_with_approval(tool_calls, tools, config)
+        result_msgs = await _execute_tools_with_approval(
+            tool_calls, tools, config, renderer=renderer
+        )
         messages.extend(result_msgs)
     else:
-        _print_assistant("Reached maximum tool iterations.")
+        if renderer:
+            renderer.start_assistant()
+            renderer.append_stream("Reached maximum tool iterations.")
+            renderer.end_assistant()
 
 
 async def _chat_loop(
@@ -292,16 +354,18 @@ async def _chat_loop(
         provider = ProviderRegistry.create(provider_name, config)
     except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     # Readline history
     history_path = Path.home() / ".config" / "sena" / "chat_history"
     history_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
+    with contextlib.suppress(OSError, FileNotFoundError):
         readline.read_history_file(str(history_path))
-    except (OSError, FileNotFoundError):
-        pass
+    # Enable native Ctrl+R reverse search
+    with contextlib.suppress(Exception):
+        readline.parse_and_bind(r'"\C-r": reverse-search-history')
 
+    draft_manager = DraftManager()
     memory = SQLiteMemory()
     tools = ToolRegistry()
     tools.register(ShellTool())
@@ -313,25 +377,22 @@ async def _chat_loop(
     tools.register(GitHubTool())
     tools.register(FileSearchTool())
     tools.register(WebSearchTool())
-    
+
     # Advanced Tools
     from sena.tools.agent import InvokeAgentTool
-    from sena.tools.skill import ActivateSkillTool
     from sena.tools.plan import EnterPlanModeTool
+    from sena.tools.skill import ActivateSkillTool
     from sena.tools.ui import UpdateTopicTool
     tools.register(InvokeAgentTool(provider, memory, tools.list_tools(), model=model))
     tools.register(ActivateSkillTool())
     tools.register(EnterPlanModeTool())
     tools.register(UpdateTopicTool())
-    
+
     # Register MCP tools
     mcp_clients = await register_mcp_tools(tools, config)
-    
+
     slash = SlashRegistry()
     ctx_mgr = ContextManager(provider, model=model)
-
-    # Session cost tracking
-    session_usage: dict[str, int] = {"prompt": 0, "completion": 0}
 
     # Header
     console.print()
@@ -361,121 +422,133 @@ async def _chat_loop(
     except Exception:
         pass
 
+    renderer = ChatRenderer(console, model=model, provider=provider_name)
+
     try:
-        while True:
-            try:
-                # Use console.input which supports readline if available
-                user_input = console.input("[bold blue]> [/bold blue]")
-            except (EOFError, KeyboardInterrupt):
-                console.print("\n[dim]Goodbye.[/dim]")
-                break
+        with renderer:
+            while True:
+                try:
+                    user_input = _read_input(console, draft_manager)
+                except (EOFError, KeyboardInterrupt):
+                    console.print("\n[dim]Goodbye.[/dim]")
+                    break
 
-            stripped = user_input.strip()
-            
-            # Interactive slash command selection
-            if stripped == "/":
-                from rich.prompt import Prompt
-                from rich.console import Group
-                
-                cmds = slash._commands
-                unique_cmds = {}
-                for c in cmds.values():
-                    unique_cmds[c.name] = c
-                
-                options = sorted(unique_cmds.keys())
-                choices_str = ", ".join([f"[cyan]/{o}[/cyan]" for o in options])
-                console.print(f"[dim]Available commands:[/dim] {choices_str}")
-                
-                cmd_name = Prompt.ask(
-                    "Select command", 
-                    choices=options,
-                    show_choices=False
-                )
-                user_input = f"/{cmd_name}"
-                stripped = user_input
-                _print_user(user_input)
+                stripped = user_input.strip()
 
-            if stripped.lower() in ("exit", "quit", "/exit", "/quit"):
-                console.print("[dim]Goodbye.[/dim]")
-                break
+                # Interactive slash command selection
+                if stripped == "/":
+                    from rich.prompt import Prompt
 
-            if not stripped:
-                continue
+                    cmds = slash._commands
+                    unique_cmds = {}
+                    for c in cmds.values():
+                        unique_cmds[c.name] = c
 
-            # Add to readline history for arrow key support
-            readline.add_history(user_input)
-            try:
-                readline.write_history_file(str(history_path))
-            except OSError:
-                pass
-            # Dispatch slash commands before sending to the LLM
-            slash_result = await slash.dispatch(messages, stripped)
-            if slash_result is not None:
-                if slash_result.messages is not None:
-                    messages = slash_result.messages
-                if slash_result.output:
-                    console.print(slash_result.output)
-                if slash_result.new_model:
-                    model = slash_result.new_model
-                    # Re-create provider if model or provider changed
-                    provider = ProviderRegistry.create(config.default_provider, config)
-                    ctx_mgr = ContextManager(provider, model=model)
-                if slash_result.done:
+                    options = sorted(unique_cmds.keys())
+                    choices_str = ", ".join([f"[cyan]/{o}[/cyan]" for o in options])
+                    console.print(f"[dim]Available commands:[/dim] {choices_str}")
+
+                    cmd_name = Prompt.ask(
+                        "Select command",
+                        choices=options,
+                        show_choices=False,
+                    )
+                    user_input = f"/{cmd_name}"
+                    stripped = user_input
+                    renderer.add_user(user_input)
+
+                if stripped.lower() in ("exit", "quit", "/exit", "/quit"):
                     console.print("[dim]Goodbye.[/dim]")
                     break
-                # After a slash command, skip the LLM turn and print status
-                _print_status(model, messages)
-                console.print()
-                continue
-            # Shell escape shortcut
-            if stripped.startswith("!"):
-                cmd = stripped[1:].strip()
-                if cmd:
-                    _print_shell_escape(stripped)
-                    result = await tools.execute("shell", {"command": cmd})
-                    _print_tool("shell", result.content, is_error=result.is_error)
-                    # Add to history so agent can see it if next message refers to it
-                    messages.append(Message(role="user", content=stripped))
-                    messages.append(Message(role="tool", content=result.content, tool_call_id="shell_escape", name="shell"))
-                    _print_status(model, messages)
-                    console.print()
-                    continue
-                else:
-                    console.print("[dim]Usage: !<command>[/dim]\n")
+
+                if not stripped:
                     continue
 
-            _print_user(stripped)
-            messages.append(Message(role="user", content=user_input))
-            await memory.store(
-                json.dumps({"role": "user", "content": user_input}),
-                namespace="session"
-            )
+                # Add to readline history for arrow key support
+                readline.add_history(user_input)
+                with contextlib.suppress(OSError):
+                    readline.write_history_file(str(history_path))
 
-            # Auto-context compaction before LLM turn
-            try:
-                messages = await ctx_mgr.prepare(messages, tools=tools.definitions())
-            except Exception:
-                pass  # Don't block chat if compaction fails
+                # Dispatch slash commands before sending to the LLM
+                slash_result = await slash.dispatch(messages, stripped)
+                if slash_result is not None:
+                    if slash_result.messages is not None:
+                        messages = slash_result.messages
+                        # If messages were cleared (only system remains), clear renderer too
+                        if len(messages) <= 1:
+                            renderer.clear()
+                    if slash_result.output:
+                        console.print(slash_result.output)
+                    if slash_result.new_model:
+                        model = slash_result.new_model
+                        # Re-create provider if model or provider changed
+                        provider = ProviderRegistry.create(config.default_provider, config)
+                        ctx_mgr = ContextManager(provider, model=model)
+                        # Update renderer model reference
+                        renderer.model = model
+                    if slash_result.done:
+                        console.print("[dim]Goodbye.[/dim]")
+                        break
+                    continue
 
-            try:
-                # We need to capture the assistant's response to store it
-                # The current _run_agent_turn appends directly to messages
-                start_idx = len(messages)
-                await _run_agent_turn(
-                    messages, provider, tools, model, config, streaming=streaming
-                )
-                # Store all new assistant/tool messages
-                for i in range(start_idx, len(messages)):
-                    msg = messages[i]
-                    if msg.content:
-                        await memory.store(
-                            json.dumps({"role": msg.role, "content": msg.content}),
-                            namespace="session"
+                # Shell escape shortcut
+                if stripped.startswith("!"):
+                    cmd = stripped[1:].strip()
+                    if cmd:
+                        renderer.add_user(f"$ {cmd}")
+                        result = await tools.execute("shell", {"command": cmd})
+                        renderer.add_tool_result("shell", result.content, is_error=result.is_error)
+                        # Add to history so agent can see it if next message refers to it
+                        messages.append(Message(role="user", content=stripped))
+                        messages.append(
+                            Message(
+                                role="tool",
+                                content=result.content,
+                                tool_call_id="shell_escape",
+                                name="shell",
+                            )
                         )
-            except Exception as e:
-                _print_tool("error", str(e), is_error=True)
-            _print_status(model, messages)
-            console.print()
+                        continue
+                    else:
+                        console.print("[dim]Usage: !<command>[/dim]\n")
+                        continue
+
+                renderer.add_user(user_input)
+                messages.append(Message(role="user", content=user_input))
+                await memory.store(
+                    json.dumps({"role": "user", "content": user_input}),
+                    namespace="session",
+                )
+
+                # Auto-context compaction before LLM turn
+                with contextlib.suppress(Exception):
+                    messages = await ctx_mgr.prepare(
+                        messages, tools=tools.definitions()
+                    )
+
+                try:
+                    # We need to capture the assistant's response to store it
+                    # The current _run_agent_turn appends directly to messages
+                    start_idx = len(messages)
+                    await _run_agent_turn(
+                        messages,
+                        provider,
+                        tools,
+                        model,
+                        config,
+                        streaming=streaming,
+                        renderer=renderer,
+                    )
+                    # Store all new assistant/tool messages
+                    for i in range(start_idx, len(messages)):
+                        msg = messages[i]
+                        if msg.content:
+                            await memory.store(
+                                json.dumps({"role": msg.role, "content": msg.content}),
+                                namespace="session",
+                            )
+                except Exception as e:
+                    renderer.add_tool_result("error", str(e), is_error=True)
     finally:
         # Disconnect MCP clients
         for client in mcp_clients:
