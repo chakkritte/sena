@@ -309,6 +309,7 @@ async def _chat_loop(
     try:
         while True:
             try:
+                # Use console.input which supports readline if available
                 user_input = console.input("[bold blue]> [/bold blue]")
             except (EOFError, KeyboardInterrupt):
                 console.print("\n[dim]Goodbye.[/dim]")
@@ -317,15 +318,17 @@ async def _chat_loop(
             stripped = user_input.strip()
             if stripped.lower() in ("exit", "quit", "/exit", "/quit"):
                 console.print("[dim]Goodbye.[/dim]")
-                try:
-                    readline.write_history_file(str(history_path))
-                except OSError:
-                    pass
                 break
 
             if not stripped:
                 continue
 
+            # Add to readline history for arrow key support
+            readline.add_history(user_input)
+            try:
+                readline.write_history_file(str(history_path))
+            except OSError:
+                pass
             # Dispatch slash commands before sending to the LLM
             slash_result = slash.dispatch(messages, stripped)
             if slash_result is not None:
