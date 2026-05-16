@@ -98,23 +98,26 @@ class MCPClient:
         except ImportError as e:
             raise RuntimeError("MCP support requires 'mcp' package. Run: uv add mcp") from e
 
-        if self.transport == "stdio":
-            params = StdioServerParameters(
-                command=self.command or "npx",
-                args=self.args,
-                env=None,
-            )
-            transport_cm = stdio_client(params)
-        elif self.transport == "sse":
-            transport_cm = sse_client(self.url or "http://localhost:3000/sse")
-        else:
-            raise ValueError(f"Unknown transport: {self.transport}")
+        try:
+            if self.transport == "stdio":
+                params = StdioServerParameters(
+                    command=self.command or "npx",
+                    args=self.args,
+                    env=None,
+                )
+                self._transport_ctx = stdio_client(params)
+            elif self.transport == "sse":
+                self._transport_ctx = sse_client(self.url or "http://localhost:3000/sse")
+            else:
+                raise ValueError(f"Unknown transport: {self.transport}")
 
-        self._transport = transport_cm
-        read, write = await self._transport.__aenter__()
-        self._session = ClientSession(read, write)
-        await self._session.__aenter__()
-        await self._session.initialize()
+            read, write = await self._transport_ctx.__aenter__()
+            self._session = ClientSession(read, write)
+            await self._session.__aenter__()
+            await self._session.initialize()
+        except Exception:
+            await self.disconnect()
+            raise
 
     async def list_tools(self) -> list[ToolDefinition]:
         """Discover tools exposed by the MCP server."""
@@ -143,10 +146,18 @@ class MCPClient:
     async def disconnect(self) -> None:
         """Close the MCP session."""
         if self._session is not None:
-            await self._session.__aexit__(None, None, None)
+            try:
+                await self._session.__aexit__(None, None, None)
+            except Exception:
+                pass
             self._session = None
-        if hasattr(self, "_transport"):
-            await self._transport.__aexit__(None, None, None)
+        
+        if hasattr(self, "_transport_ctx"):
+            try:
+                await self._transport_ctx.__aexit__(None, None, None)
+            except Exception:
+                pass
+            delattr(self, "_transport_ctx")
 
 
 async def register_mcp_tools(registry: ToolRegistry, config: SenaConfig) -> list[MCPClient]:
@@ -179,11 +190,11 @@ async def register_mcp_tools(registry: ToolRegistry, config: SenaConfig) -> list
     # and not already configured.
     if config.default_provider == "ollama" and "ollama-web-tools" not in config.mcp_servers:
         try:
-            # We assume it's available via npx for now, as is standard for MCPs
+            # Use the github repository directly for npx to avoid 404 on registry
             client = MCPClient(
                 transport="stdio",
                 command="npx",
-                args=["-y", "ollama-web-tools-mcp"],
+                args=["-y", "github:chakkritte/ollama-web-tools-mcp"],
             )
             await client.connect()
             tools = await client.list_tools()
@@ -192,8 +203,8 @@ async def register_mcp_tools(registry: ToolRegistry, config: SenaConfig) -> list
             clients.append(client)
             logger.info("mcp.auto_registered", server="ollama-web-tools")
         except Exception as e:
-            # Silently fail if npx/mcp server is not available
-            logger.debug("mcp.auto_failed", server="ollama-web-tools", error=str(e))
+            # Log as warning if auto-registration fails
+            logger.warning("mcp.auto_failed", server="ollama-web-tools", error=str(e))
 
     return clients
 
