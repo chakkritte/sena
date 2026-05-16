@@ -282,7 +282,7 @@ async def _chat_loop(
     console.print(f"[dim]{provider_name}[/dim] / [bold cyan]{model}[/bold cyan]\n")
     console.print(
         "[dim]Type a message or [bold]exit[/bold] to quit. "
-        "Use [bold]/help[/bold] for slash commands.[/dim]\n"
+        "Use [bold]/help[/bold] for commands, [bold]![/bold] for shell escape.[/dim]\n"
     )
 
     system_prompt = _build_system_prompt(config)
@@ -321,6 +321,23 @@ async def _chat_loop(
             _print_status(model, messages)
             console.print()
             continue
+
+        # Shell escape shortcut
+        if stripped.startswith("!"):
+            cmd = stripped[1:].strip()
+            if cmd:
+                _print_user(stripped)
+                result = await tools.execute("shell", {"command": cmd})
+                _print_tool("shell", result.content, is_error=result.is_error)
+                # Add to history so agent can see it if next message refers to it
+                messages.append(Message(role="user", content=stripped))
+                messages.append(Message(role="tool", content=result.content, tool_call_id="shell_escape", name="shell"))
+                _print_status(model, messages)
+                console.print()
+                continue
+            else:
+                console.print("[dim]Usage: !<command>[/dim]\n")
+                continue
 
         _print_user(stripped)
         messages.append(Message(role="user", content=user_input))
