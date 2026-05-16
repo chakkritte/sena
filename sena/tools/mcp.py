@@ -88,9 +88,9 @@ class MCPClient:
     async def connect(self) -> None:
         """Establish the MCP session."""
         try:
-            from mcp import ClientSession, StdioServerParameters  # type: ignore
-            from mcp.client.stdio import stdio_client  # type: ignore
-            from mcp.client.sse import sse_client  # type: ignore
+            from mcp import ClientSession, StdioServerParameters
+            from mcp.client.stdio import stdio_client
+            from mcp.client.sse import sse_client
         except ImportError as e:
             raise RuntimeError("MCP support requires 'mcp' package. Run: uv add mcp") from e
 

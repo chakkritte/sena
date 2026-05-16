@@ -118,9 +118,9 @@ class GeminiProvider(BaseProvider):
             **request.extra,
         )
         try:
-            response = self.client.models.generate_content(
+            response = await self.client.models.generate_content(  # type: ignore[misc]
                 model=request.model or self.default_model,
-                contents=contents,
+                contents=contents,  # type: ignore[arg-type]
                 config=config,
             )
             text = ""
@@ -169,9 +169,9 @@ class GeminiProvider(BaseProvider):
             **request.extra,
         )
         try:
-            for chunk in self.client.models.generate_content_stream(
+            async for chunk in await self.client.aio.models.generate_content_stream(
                 model=request.model or self.default_model,
-                contents=contents,
+                contents=contents,  # type: ignore[arg-type]
                 config=config,
             ):
                 text = ""
@@ -209,3 +209,4 @@ class GeminiProvider(BaseProvider):
             return [m.name for m in models if m.name]
         except Exception:
             return [self.default_model]
+

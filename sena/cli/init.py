@@ -106,7 +106,7 @@ def init_persona() -> None:
     config_dir.mkdir(parents=True, exist_ok=True)
     persona_path = config_dir / "persona.toml"
 
-    import tomli_w
+    import tomli_w  # type: ignore
     with open(persona_path, "wb") as f:
         tomli_w.dump({"persona": persona}, f)
 
