@@ -111,14 +111,15 @@ class ChatRenderer:
         """Add a user message and print it."""
         self.messages.append(RenderedMessage(role="user", content=content, raw=raw))
         text = Text(content, style=f"bold {self.USER_COLOR}")
+        width = min(self.console.width - 2, 100)
         self.console.print(
             Panel(
                 text,
-                border_style=self.BORDER_USER,
-                title="[bold]you[/bold]",
-                title_align="left",
-                padding=(0, 1),
-                width=min(self.console.width - 4, 100),
+                border_style="dim",
+                title=" you ",
+                title_align="center",
+                padding=(0, 2),
+                width=width,
             )
         )
 
@@ -128,7 +129,7 @@ class ChatRenderer:
         self.messages.append(
             RenderedMessage(role="assistant", content="", streaming=True, raw=raw)
         )
-        self._stream_display = StreamingDisplay(self.console, title="CarbonClaw")
+        self._stream_display = StreamingDisplay(self.console, title=" CarbonClaw ")
         self._stream_display.__enter__()
 
     def append_stream(self, text: str) -> None:
@@ -194,23 +195,25 @@ class ChatRenderer:
                 )
             )
 
-        title = f"[bold]{name}[/bold]"
+        title = f" {name} "
         if is_error:
-            title = f"[bold red]{name}[/bold red]"
-        display = result[:1200]
-        if len(result) > 1200:
+            title = f" [bold red]{name}[/bold red] "
+        display = result[:2000]
+        if len(result) > 2000:
             display += (
-                f"\n\n[dim]... {len(result) - 1200} more characters[/dim]"
+                f"\n\n[dim]... {len(result) - 2000} more characters[/dim]"
             )
         style = self.ERROR_COLOR if is_error else self.SYSTEM_COLOR
-        border = self.BORDER_ERROR if is_error else self.BORDER_TOOL
+        border = "red" if is_error else "dim"
+        width = min(self.console.width - 2, 100)
         self.console.print(
             Panel(
                 Text(display, style=style),
                 border_style=border,
                 title=title,
-                title_align="left",
-                padding=(0, 1),
+                title_align="center",
+                padding=(0, 2),
+                width=width,
             )
         )
 

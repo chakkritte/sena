@@ -47,12 +47,14 @@ class StreamingDisplay:
 
     def _render(self) -> Panel:
         content = Markdown(self._text, code_theme="monokai") if self._text else self._spinner
+        width = min(self.console.width - 2, 100)
         return Panel(
             content,
-            border_style="green",
-            title=f"[bold]{self.title}[/bold]",
-            title_align="left",
-            padding=(0, 1),
+            border_style="dim",
+            title=f"{self.title}",
+            title_align="center",
+            padding=(0, 2),
+            width=width,
         )
 
     def append(self, text: str) -> None:
