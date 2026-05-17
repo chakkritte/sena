@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarbonClaw | AI-Native Autonomous Engineering Runtime</title>
+    <meta name="description" content="CarbonClaw is an AI-native runtime for autonomous software engineering, multi-agent collaboration, and self-evolving research workflows.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0c10;
+            --fg: #e6edf3;
+            --accent: #238636;
+            --accent-light: #2ea043;
+            --muted: #8b949e;
+            --border: #30363d;
+            --surface: #161b22;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Navigation */
+        nav {
+            padding: 1.5rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--fg);
+        }
+
+        /* Hero Section */
+        header {
+            padding: 6rem 0;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to bottom right, #fff, #8b949e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-desc {
+            font-size: 1.25rem;
+            color: var(--muted);
+            max-width: 700px;
+            margin: 0 auto 2.5rem;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: #white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-light);
+        }
+
+        .btn-secondary {
+            border: 1px solid var(--border);
+            color: var(--fg);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--surface);
+        }
+
+        /* Code Block */
+        .terminal {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 4rem 0;
+            text-align: left;
+            font-family: 'JetBrains Mono', monospace;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .terminal-header {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27c93f; }
+
+        .terminal code {
+            color: var(--accent-light);
+        }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+
+        .feature-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 2rem;
+            border-radius: 12px;
+            transition: transform 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-card h3 {
+            margin-bottom: 1rem;
+            color: var(--fg);
+        }
+
+        .feature-card p {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        /* Sustainability Section */
+        .sustainability {
+            background: linear-gradient(180deg, var(--bg) 0%, #061006 100%);
+            padding: 4rem 2rem;
+            border-radius: 20px;
+            border: 1px solid #143014;
+            margin: 4rem 0;
+            text-align: center;
+        }
+
+        .leaf-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Architecture */
+        .architecture {
+            margin: 6rem 0;
+        }
+
+        .architecture h2 {
+            font-size: 2rem;
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        .arch-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .arch-list {
+            list-style: none;
+        }
+
+        .arch-item {
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+            border-left: 2px solid var(--accent);
+        }
+
+        .arch-item strong {
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .arch-item span {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        footer {
+            padding: 4rem 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .arch-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <div class="logo">🤖 CarbonClaw</div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#architecture">Architecture</a>
+                <a href="https://github.com/chakkritte/carbonclaw">GitHub</a>
+            </div>
+        </nav>
+
+        <header>
+            <h1>Autonomous Engineering</h1>
+            <p class="hero-desc">The AI-native runtime for autonomous software engineering, multi-agent orchestration, and self-evolving research workflows.</p>
+            <div class="cta-group">
+                <a href="https://github.com/chakkritte/carbonclaw" class="btn btn-primary">Get Started</a>
+                <a href="#features" class="btn btn-secondary">Learn More</a>
+            </div>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="dot dot-red"></div>
+                    <div class="dot dot-yellow"></div>
+                    <div class="dot dot-green"></div>
+                </div>
+                <code>$ curl -fsSL https://bit.ly/carbonclaw | bash</code><br>
+                <code style="color: var(--muted)"># Installing CarbonClaw v0.1.1...</code><br>
+                <code>$ carbonclaw chat</code><br>
+                <code style="color: #fff">> Refactor carbonclaw/core/base.py to use Protocol</code>
+            </div>
+        </header>
+
+        <section id="features" class="features">
+            <div class="feature-card">
+                <h3>Multi-Agent Orchestration</h3>
+                <p>Automated plan → code → test → review → docs workflows. Coordinate specialized agents to solve entire development cycles autonomously.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Self-Evolution</h3>
+                <p>Agents learn from past interactions and autonomously improve their strategies and rules, getting smarter with every session.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Claude Code-Style Chat</h3>
+                <p>Modern terminal UX with multi-line input, draft preservation, persistent rendering, and interactive approval gates.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Browser Automation</h3>
+                <p>Full web interaction and scraping via Playwright integration, enabling agents to research and debug across the web.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Observability First</h3>
+                <p>Built-in OpenTelemetry tracing for every execution path. Monitor token costs, decision-making, and performance with granular detail.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Strict Engineering</h3>
+                <p>100% Mypy compliance and strictly typed architecture designed for enterprise reliability and long-term maintainability.</p>
+            </div>
+        </section>
+
+        <section class="sustainability">
+            <div class="leaf-icon">🌱</div>
+            <h2>Carbon-Conscious Computation</h2>
+            <p class="hero-desc">CarbonClaw is built with the planet in mind. We integrate real-time emission tracking and proactively suggest local or greener models for simple tasks.</p>
+            <div style="font-family: 'JetBrains Mono', monospace; color: var(--accent-light); margin-top: 1rem;">
+                [Carbon Emissions: 0.000012 kg CO2]
+            </div>
+        </section>
+
+        <section id="architecture" class="architecture">
+            <h2>Built for Scale</h2>
+            <div class="arch-grid">
+                <div>
+                    <div class="arch-item">
+                        <strong>Agents (The Brains)</strong>
+                        <span>Specialized logic for planning, coding, QA, and documentation.</span>
+                    </div>
+                    <div class="arch-item">
+                        <strong>Tools (The Hands)</strong>
+                        <span>Secure adapters for Shell, Git, Filesystem, and Web Search.</span>
+                    </div>
+                    <div class="arch-item">
+                        <strong>Memory (The Recall)</strong>
+                        <span>Persistent SQLite-backed long-term memory and context management.</span>
+                    </div>
+                    <div class="arch-item">
+                        <strong>Providers (The Connections)</strong>
+                        <span>Agnostic abstraction layer for OpenAI, Anthropic, Gemini, and Ollama.</span>
+                    </div>
+                </div>
+                <div class="terminal" style="margin: 0;">
+                    <pre style="color: var(--muted); font-size: 0.8rem;">
+carbonclaw/
+├── agents/ (Specialized Brains)
+├── tools/  (Sensory & Motor)
+├── core/   (The Runtime)
+├── providers/ (LLM Adapters)
+└── memory/ (State & Recall)
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 CarbonClaw Contributors. Released under MIT License.</p>
+        </footer>
+    </div>
+</body>
+</html>
