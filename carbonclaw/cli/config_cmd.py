@@ -23,7 +23,6 @@ def config_cmd(
         return
 
     cfg = CarbonClawConfig()
-...
 
     if init:
         user_dir = cfg.ensure_user_dir()
