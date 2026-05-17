@@ -140,6 +140,19 @@ class ChatRenderer:
         if self._stream_display:
             self._stream_display.append(text)
 
+    def pause(self) -> None:
+        """Pause the current streaming display to allow console input."""
+        if self._stream_display:
+            self._stream_display.__exit__(None, None, None)
+            self._stream_display = None
+
+    def resume(self) -> None:
+        """Resume the streaming display if we were in the middle of a message."""
+        if self.messages and self.messages[-1].role == "assistant" and self.messages[-1].streaming:
+            self._stream_display = StreamingDisplay(self.console, title="CarbonClaw")
+            self._stream_display.__enter__()
+            self._stream_display.set_text(self._current_stream)
+
     def end_assistant(self) -> None:
         """Finalize the current assistant streaming message."""
         if self.messages and self.messages[-1].role == "assistant":

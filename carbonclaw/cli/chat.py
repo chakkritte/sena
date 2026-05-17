@@ -506,10 +506,17 @@ async def _chat_loop(
     finally:
         # Disconnect MCP clients safely
         if mcp_clients:
-            await asyncio.gather(
-                *(client.disconnect() for client in mcp_clients),
-                return_exceptions=True
-            )
+            try:
+                # Use a shielded task to ensure disconnection attempts aren't cancelled halfway
+                async def _cleanup():
+                    await asyncio.gather(
+                        *(client.disconnect() for client in mcp_clients),
+                        return_exceptions=True
+                    )
+                await asyncio.shield(_cleanup())
+            except (asyncio.CancelledError, Exception):
+                pass
+        
         # Save history
         with contextlib.suppress(OSError):
             readline.write_history_file(str(history_path))
