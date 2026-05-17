@@ -206,7 +206,7 @@ class ChatRenderer:
         self.console.print(f" [dim]──[/dim] {icon} [{style}]{name}[/{style}]{arg_str}")
 
     def add_tool_result(self, name: str, result: str, is_error: bool = False) -> None:
-        """Update or add a tool result and print it."""
+        """Update or add a tool result and print it with line-based truncation."""
         icon, _ = self._get_tool_info(name)
         
         for msg in reversed(self.messages):
@@ -232,11 +232,23 @@ class ChatRenderer:
         if is_error:
             title = f" ❌ {name} "
         
-        display = result[:3000]
-        if len(result) > 3000:
+        # Line-based truncation for a cleaner UI
+        MAX_LINES = 15
+        lines = result.splitlines()
+        if len(lines) > MAX_LINES:
+            display_lines = lines[:MAX_LINES]
+            display = "\n".join(display_lines)
+            remaining_lines = len(lines) - MAX_LINES
+            remaining_chars = sum(len(line) for line in lines[MAX_LINES:])
             display += (
-                f"\n\n[dim]... {len(result) - 3000} more characters[/dim]"
+                f"\n\n[dim italic]... {remaining_lines} more lines ({remaining_chars} chars) omitted. [/dim italic]"
             )
+        else:
+            # Fallback to character-based truncation if lines are very long
+            if len(result) > 5000:
+                display = result[:5000] + f"\n\n[dim italic]... {len(result) - 5000} more characters omitted.[/dim italic]"
+            else:
+                display = result
         
         style = self.ERROR_COLOR if is_error else self.SYSTEM_COLOR
         border = "red" if is_error else "dim"
