@@ -255,10 +255,27 @@ class ChatRenderer:
         style = self.ERROR_COLOR if is_error else self.SYSTEM_COLOR
         border = "red" if is_error else "dim"
         width = min(self.console.width - 2, 100)
-        
+
+        # Apply Syntax Highlighting for specific tools
+        from rich.syntax import Syntax
+        content_renderable = Text(display, style=style)
+
+        if not is_error:
+            if name in ("file_read", "file_write"):
+                # Try to detect language from messages history or assume based on content
+                # For simplicity, we'll use a basic detection or default to python/markdown
+                lang = "python"
+                for msg in reversed(self.messages):
+                    if msg.role == "tool" and msg.tool_name == name and msg.tool_result == result:
+                        # Logic to find the path in arguments could go here
+                        pass
+                content_renderable = Syntax(display, lang, theme="monokai", line_numbers=True, word_wrap=True)
+            elif name == "file_patch":
+                content_renderable = Syntax(display, "diff", theme="monokai", word_wrap=True)
+
         self.console.print(
             Panel(
-                Text(display, style=style),
+                content_renderable,
                 border_style=border,
                 title=title,
                 title_align="center",
