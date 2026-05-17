@@ -455,8 +455,20 @@ async def _chat_loop(
     system_prompt = _build_system_prompt(config)
     messages: list[Message] = [Message(role="system", content=system_prompt)]
 
+    from carbonclaw.ui.status_bar import render_status_bar
+    active_provider = provider
+    active_model = model
+
     try:
         while True:
+            # Render status bar before prompt
+            status_bar = render_status_bar(
+                model=active_model,
+                provider=active_provider.__class__.__name__.lower().replace("provider", ""),
+                messages=messages
+            )
+            console.print(status_bar)
+
             try:
                 user_input = _read_input(console, draft_manager)
             except EOFError:
@@ -505,9 +517,6 @@ async def _chat_loop(
             messages.append(Message(role="user", content=user_input))
             
             # Dynamic routing if allowed
-            active_provider = provider
-            active_model = model
-            
             if not provider_name or provider_name == "auto":
                 strat_name = config.routing_strategy
                 try:
