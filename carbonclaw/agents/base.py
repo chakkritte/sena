@@ -97,8 +97,8 @@ class ReactAgent(BaseAgent):
         
         persona_str = ""
         if config.persona:
-            persona_str = "\n\nYOUR PERSONA AND PREFERENCES:\n" + "\n".join(
-                f"- {k.capitalize()}: {v}" for k, v in config.persona.items()
+            persona_str = "\n\nUSER PERSONA & PREFERENCES:\n" + "\n".join(
+                f"- {k.replace('_', ' ').title()}: {v}" for k, v in config.persona.items()
             )
 
         learned_rules = await self.memory.retrieve("", namespace="learned_rules", limit=50)
@@ -261,7 +261,13 @@ class ReactAgent(BaseAgent):
         if recommendation:
             yield f"{recommendation}\n\n"
 
-        full_system_prompt = self.system_prompt
+        persona_str = ""
+        if config.persona:
+            persona_str = "\n\nUSER PERSONA & PREFERENCES:\n" + "\n".join(
+                f"- {k.replace('_', ' ').title()}: {v}" for k, v in config.persona.items()
+            )
+
+        full_system_prompt = (self.system_prompt or "") + persona_str
         if instruction_context:
             full_system_prompt += "\n\nWORKSPACE CONTEXT & INSTRUCTIONS:\n" + instruction_context
 
