@@ -32,7 +32,7 @@ class AgentContext:
         memory: BaseMemory,
         system_prompt: str = "",
         model: str | None = None,
-        max_iterations: int = 10,
+        max_iterations: int = 20,
     ) -> None:
         self.provider = provider
         self.tools = tools
@@ -62,7 +62,7 @@ class ReactAgent(BaseAgent):
             "Think step by step, then use tools when needed."
         ),
         model: str | None = None,
-        max_iterations: int = 10,
+        max_iterations: int = 20,
         approval_callback: ApprovalCallback | None = None,
     ) -> None:
         super().__init__(

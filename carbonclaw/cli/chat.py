@@ -227,7 +227,7 @@ async def _run_agent_turn(
     """Run one ReAct turn."""
     from carbonclaw.telemetry.carbon import track_carbon
     
-    max_iterations = 10
+    max_iterations = config.max_iterations
     with track_carbon("chat_session", enabled=config.carbon_tracking_enabled) as ct:
         for _ in range(max_iterations):
             content_parts: list[str] = []
@@ -347,10 +347,26 @@ async def _run_agent_turn(
             )
             messages.extend(result_msgs)
         else:
+            # Reached max iterations
+            from rich.prompt import Confirm
             if renderer:
-                renderer.start_assistant()
-                renderer.append_stream("Reached maximum tool iterations.")
-                renderer.end_assistant()
+                renderer.pause()
+            
+            console.print(f"\n[yellow]⚠️ Reached maximum tool iterations ({max_iterations}).[/yellow]")
+            if Confirm.ask("The agent might be stuck or needs more steps. Continue for 10 more iterations?"):
+                if renderer:
+                    renderer.resume()
+                # Continue with 10 more iterations
+                # Note: We create a temporary config to not affect the next turn's default
+                temp_config = config.model_copy()
+                temp_config.max_iterations = 10
+                await _run_agent_turn(messages, provider, tools, model, temp_config, streaming, renderer)
+            else:
+                if renderer:
+                    renderer.resume()
+                    renderer.start_assistant()
+                    renderer.append_stream("Reached maximum tool iterations.")
+                    renderer.end_assistant()
 
         if config.carbon_tracking_enabled:
             emissions = ct.last_emissions

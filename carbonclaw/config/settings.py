@@ -143,6 +143,7 @@ class CarbonClawConfig(BaseSettings):
     # Runtime policies
     auto_approve_safe_commands: bool = False
     auto_approve_file_writes: bool = False
+    max_iterations: int = 20
     sandbox_enabled: bool = False
     sandbox_image: str = "carbonclaw-sandbox:latest"
 
