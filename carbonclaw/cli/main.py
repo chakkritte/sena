@@ -64,38 +64,32 @@ async def cli_approval_callback(name: str, arguments: dict[str, Any]) -> bool:
     from rich.text import Text
     import json
 
+    title = f" Approve action: [bold]{name}?[/bold] "
+    
     if name == "file_patch":
         path = arguments.get("path", "")
         diff_text = arguments.get("diff", "")
-        console.print(
-            Panel(
-                Syntax(diff_text, "diff", theme="monokai", padding=0),
-                title=f"[bold yellow]Approve patch: {path}?[/bold yellow]",
-                border_style="yellow",
-                padding=(0, 1),
-            )
-        )
+        title = f" Approve patch: [bold]{path}?[/bold] "
+        content = Syntax(diff_text, "diff", theme="monokai", padding=0)
     elif name == "file_write":
         path = arguments.get("path", "")
-        content = arguments.get("content", "")
-        console.print(
-            Panel(
-                Syntax(content, "python", theme="monokai", padding=0),
-                title=f"[bold yellow]Approve write: {path}?[/bold yellow]",
-                border_style="yellow",
-                padding=(0, 1),
-            )
-        )
+        content_text = arguments.get("content", "")
+        title = f" Approve write: [bold]{path}?[/bold] "
+        content = Syntax(content_text, "python", theme="monokai", padding=0)
     else:
         args_json = json.dumps(arguments, indent=2)
-        console.print(
-            Panel(
-                Text(args_json, style="cyan"),
-                title=f"[bold yellow]Approve action: {name}?[/bold yellow]",
-                border_style="yellow",
-                padding=(0, 1),
-            )
+        content = Text(args_json, style="cyan")
+
+    console.print(
+        Panel(
+            content,
+            title=title,
+            title_align="center",
+            border_style="dim",
+            padding=(0, 1),
         )
+    )
+    
     return Confirm.ask("Proceed?")
 
 
