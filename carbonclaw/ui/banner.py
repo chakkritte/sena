@@ -24,6 +24,7 @@ def print_banner(
     model: str = "llama3.2",
     endpoint: str = "http://localhost:11434",
     is_local: bool = True,
+    carbon_total: float = 0.0,
 ) -> None:
     """Print the CarbonClaw splash banner with a dynamic status box."""
     banner = Text()
@@ -49,6 +50,7 @@ def print_banner(
     info_table.add_row("Provider", provider)
     info_table.add_row("Model", model)
     info_table.add_row("Endpoint", endpoint)
+    info_table.add_row("Carbon", f"🌱 {carbon_total:.6f} kg CO2" if carbon_total > 0 else "🌱 0.000000 kg CO2")
 
     # Main layout
     from rich.console import Group

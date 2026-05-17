@@ -421,12 +421,16 @@ async def _chat_loop(
     
     is_local = provider_name.lower() in ("ollama", "local", "llama.cpp")
 
+    from carbonclaw.telemetry.carbon import CarbonStore
+    carbon_total = CarbonStore().total_emissions()
+
     print_banner(
         console,
         provider=provider_name.capitalize(),
         model=model,
         endpoint=endpoint,
-        is_local=is_local
+        is_local=is_local,
+        carbon_total=carbon_total
     )
     
     console.print(f"Chatting with [bold green]{provider_name}/{model}[/bold green]")
