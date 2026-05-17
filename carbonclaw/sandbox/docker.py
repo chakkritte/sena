@@ -95,48 +95,62 @@ class DockerSandbox:
         start = asyncio.get_event_loop().time()
 
         try:
-            container = await asyncio.wait_for(
-                loop.run_in_executor(None, lambda: self.client.containers.run(**container_config)),
-                timeout=self.timeout + 5,
+            # Create container but don't start yet
+            container = await loop.run_in_executor(
+                None, lambda: self.client.containers.create(**container_config)
             )
-        except asyncio.TimeoutError:
+            
+            # Start and wait for finish
+            await loop.run_in_executor(None, container.start)
+            
+            wait_task = loop.run_in_executor(None, container.wait)
+            try:
+                await asyncio.wait_for(wait_task, timeout=self.timeout)
+            except asyncio.TimeoutError:
+                logger.warning("sandbox.timeout", container=container.id[:12])
+                await loop.run_in_executor(None, container.kill)
+                # Ensure it's removed
+                await loop.run_in_executor(None, container.remove, {"force": True})
+                return SandboxResult(
+                    stdout="",
+                    stderr=f"Sandbox execution timed out after {self.timeout}s.",
+                    exit_code=-1,
+                    duration_ms=(asyncio.get_event_loop().time() - start) * 1000,
+                )
+
+            # Retrieve separate stdout and stderr
+            # Using socket to stream and separate outputs is the production way
+            # For now, we'll use logs with specific flags
+            stdout_bytes = await loop.run_in_executor(
+                None, lambda: container.logs(stdout=True, stderr=False)
+            )
+            stderr_bytes = await loop.run_in_executor(
+                None, lambda: container.logs(stdout=False, stderr=True)
+            )
+            
+            stdout = stdout_bytes.decode("utf-8", errors="replace")
+            stderr = stderr_bytes.decode("utf-8", errors="replace")
+
+            # Final stats
+            inspect = await loop.run_in_executor(None, container.reload)
+            exit_code = container.attrs["State"]["ExitCode"]
+
+            await loop.run_in_executor(None, container.remove, {"force": True})
+
+        except Exception as e:
+            logger.exception("sandbox.error", command=cmd[:50])
             return SandboxResult(
                 stdout="",
-                stderr=f"Sandbox timed out after {self.timeout}s during container startup.",
+                stderr=f"Sandbox error: {str(e)}",
                 exit_code=-1,
                 duration_ms=0.0,
             )
-
-        try:
-            await asyncio.wait_for(
-                loop.run_in_executor(None, container.wait),
-                timeout=self.timeout,
-            )
-        except asyncio.TimeoutError:
-            logger.warning("sandbox.timeout", container=container.id[:12])
-            await loop.run_in_executor(None, container.kill)
-            return SandboxResult(
-                stdout="",
-                stderr=f"Sandbox execution timed out after {self.timeout}s.",
-                exit_code=-1,
-                duration_ms=(asyncio.get_event_loop().time() - start) * 1000,
-            )
-
-        logs = await loop.run_in_executor(None, container.logs, True, True)
-        stdout = logs.decode("utf-8", errors="replace") if isinstance(logs, bytes) else str(logs)
-        # Docker logs combine stdout and stderr; we approximate by splitting on common patterns
-        # In production, use separate log streams via attach_socket
-
-        inspect = await loop.run_in_executor(None, container.reload)
-        exit_code = container.attrs["State"]["ExitCode"]
-
-        await loop.run_in_executor(None, container.remove, True)
 
         duration_ms = (asyncio.get_event_loop().time() - start) * 1000
 
         return SandboxResult(
             stdout=stdout,
-            stderr="",
+            stderr=stderr,
             exit_code=exit_code,
             duration_ms=duration_ms,
         )

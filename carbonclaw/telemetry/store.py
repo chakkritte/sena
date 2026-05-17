@@ -80,23 +80,45 @@ class TelemetryStore:
         return results
 
     def summary(self) -> dict[str, Any]:
-        """Return aggregated usage statistics."""
+        """Return aggregated usage statistics with cost estimation."""
         records = self.records()
         total_prompt = sum(r.prompt_tokens for r in records)
         total_completion = sum(r.completion_tokens for r in records)
-        by_model: dict[str, dict[str, int]] = {}
+        
+        # Simple cost map (USD per 1M tokens) - Examples
+        # In production, this should be a dynamic config or updated regularly
+        COST_MAP = {
+            "openai/gpt-4o-mini": (0.15, 0.60),
+            "openai/gpt-4o": (2.50, 10.0),
+            "anthropic/claude-3-5-sonnet-latest": (3.0, 15.0),
+            "anthropic/claude-3-5-haiku-latest": (0.25, 1.25),
+            "gemini/gemini-1.5-flash": (0.075, 0.30),
+            "ollama": (0.0, 0.0),
+        }
+
+        total_cost = 0.0
+        by_model: dict[str, dict[str, Any]] = {}
         for r in records:
             key = f"{r.provider}/{r.model}"
-            by_model.setdefault(key, {"prompt": 0, "completion": 0, "requests": 0})
+            # Check for generic provider cost if specific model not found
+            prices = COST_MAP.get(key, COST_MAP.get(r.provider, (0.0, 0.0)))
+            
+            p_cost = (r.prompt_tokens / 1_000_000) * prices[0]
+            c_cost = (r.completion_tokens / 1_000_000) * prices[1]
+            total_cost += p_cost + c_cost
+            
+            by_model.setdefault(key, {"prompt": 0, "completion": 0, "requests": 0, "cost": 0.0})
             by_model[key]["prompt"] += r.prompt_tokens
             by_model[key]["completion"] += r.completion_tokens
             by_model[key]["requests"] += 1
+            by_model[key]["cost"] += p_cost + c_cost
 
         return {
             "total_requests": len(records),
             "total_prompt_tokens": total_prompt,
             "total_completion_tokens": total_completion,
             "total_tokens": total_prompt + total_completion,
+            "total_cost_usd": round(total_cost, 6),
             "by_model": by_model,
         }
 

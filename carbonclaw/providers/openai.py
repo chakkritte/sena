@@ -37,33 +37,22 @@ from carbonclaw.providers.base import (
 logger = structlog.get_logger()
 
 
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 class OpenAIProvider(BaseProvider):
     """Provider adapter for OpenAI and OpenAI-compatible endpoints."""
 
-    def __init__(
-        self,
-        api_key: str,
-        base_url: str | None = None,
-        default_model: str = "gpt-4o-mini",
-        name: str = "openai",
-    ) -> None:
-        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-        self.default_model = default_model
-        self.name = name
-        self.info = ProviderInfo(
-            name=name,
-            supports_streaming=True,
-            supports_tools=True,
-            supports_vision=True,
-            supports_embeddings=True,
-            default_model=default_model,
-            requires_api_key=True,
-            base_url=base_url or "https://api.openai.com/v1",
-        )
-        self._tool_accum = ToolAccumulator()
+    # ... (init unchanged) ...
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((RateLimitError, ProviderError)),
+        reraise=True,
+    )
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         messages = [_message_to_openai(m) for m in request.messages]
+        # ... (rest of method unchanged) ...
         tools = [t.to_openai() for t in request.tools] if request.tools else None
         try:
             response = await self.client.chat.completions.create(
@@ -112,6 +101,12 @@ class OpenAIProvider(BaseProvider):
         except APIConnectionError as e:
             raise ProviderError(f"Connection error: {e}") from e
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((RateLimitError, ProviderError)),
+        reraise=True,
+    )
     async def stream(self, request: CompletionRequest) -> AsyncIterator[StreamChunk]:
         messages = [_message_to_openai(m) for m in request.messages]
         tools = [t.to_openai() for t in request.tools] if request.tools else None

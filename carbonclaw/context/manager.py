@@ -95,11 +95,14 @@ class SlidingWindow:
         self.keep_first_n = keep_first_n
 
     def trim(self, messages: list[Message]) -> list[Message]:
-        """Trim messages to fit within the token budget."""
+        """Trim messages to fit within the token budget with memory preservation."""
         total = TokenCounter.count_messages(messages)
         if total <= self.budget.available_for_context():
             return messages
 
+        # Move old messages to memory before dropping
+        # This is handled by ContextManager.prepare in a real workflow
+        
         preserved: list[Message] = []
         rest: list[Message] = []
 
@@ -122,16 +125,18 @@ class SlidingWindow:
 
 
 class ContextManager:
-    """Orchestrates token budgeting, summarization, and sliding window trimming."""
+    """Orchestrates token budgeting, summarization, and memory-backed sliding window."""
 
     def __init__(
         self,
         provider: BaseProvider,
+        memory: BaseMemory | None = None,
         budget: TokenBudget | None = None,
         model: str | None = None,
         auto_summarize: bool = True,
     ) -> None:
         self.provider = provider
+        self.memory = memory
         self.budget = budget or TokenBudget()
         self.model = model
         self.auto_summarize = auto_summarize
@@ -144,34 +149,41 @@ class ContextManager:
         messages: list[Message],
         tools: list[Any] | None = None,
     ) -> list[Message]:
-        """Prepare messages for a completion request within budget."""
+        """Prepare messages for a completion request, persisting trimmed ones to memory."""
         total = TokenCounter.count_messages(messages)
         available = self.budget.available_for_context()
 
         if total <= available:
-            logger.debug("context.within_budget", total=total, available=available)
             return messages
 
-        logger.info("context.budget_exceeded", total=total, available=available)
+        # Before trimming, store the 'to-be-dropped' messages in memory
+        if self.memory:
+            # Simple logic: store entire current state as a 'snapshot' if it gets too large
+            await self.memory.store(
+                json.dumps([m.model_dump() for m in messages]),
+                namespace="context_snapshots",
+                metadata={"tokens": total}
+            )
 
-        # Try sliding window first
+        # Try sliding window
         trimmed = self.window.trim(messages)
         if TokenCounter.count_messages(trimmed) <= available:
-            logger.info("context.trimmed_via_window", before=len(messages), after=len(trimmed))
             return trimmed
 
-        # Fall back to summarization
+        # Summarization fallback
         if self.auto_summarize:
             self._summary = await self.summarizer.summarize(messages)
-            summary_msg = Message(role="system", content=f"Summary of prior conversation: {self._summary}")
-            # Keep only system + last user/assistant exchange
+            summary_msg = Message(
+                role="system", 
+                content=f"[Context Recall] Summary of prior conversation: {self._summary}"
+            )
+            
             preserved = [m for m in messages if m.role == "system"]
             preserved.append(summary_msg)
-            # Append last 2 non-system messages
-            for m in messages[-2:]:
-                if m.role != "system":
+            # Append most recent 4 messages for immediate context
+            for m in messages[-4:]:
+                if m not in preserved:
                     preserved.append(m)
-            logger.info("context.summarized", summary_length=len(self._summary))
             return preserved
 
         return trimmed

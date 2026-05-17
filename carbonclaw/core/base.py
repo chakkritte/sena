@@ -141,24 +141,51 @@ class BaseAgent(ABC):
         """Execute the agent on a task and return the final result."""
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> ToolResult:
-        """Dispatch a tool call by name."""
-        tool = self._tool_map.get(name)
-        if tool is None:
-            return ToolResult(
-                tool_call_id="",
-                name=name,
-                content=f"Tool '{name}' not found.",
-                is_error=True,
-            )
-
-        if tool.requires_approval and self.approval_callback:
-            approved = await self.approval_callback(name, arguments)
-            if not approved:
+        """Dispatch a tool call by name with safety checks and error handling."""
+        from carbonclaw.telemetry.otel import trace_span
+        
+        with trace_span(f"agent.tool.{name}", attributes={"tool": name}):
+            tool = self._tool_map.get(name)
+            if tool is None:
+                logger.error("agent.tool_not_found", tool=name)
                 return ToolResult(
                     tool_call_id="",
                     name=name,
-                    content="Action denied by user.",
+                    content=f"Error: Tool '{name}' not found. Available: {', '.join(self._tool_map.keys())}",
                     is_error=True,
                 )
 
-        return await tool.execute(arguments)
+            # Human-in-the-loop validation
+            if tool.requires_approval and self.approval_callback:
+                try:
+                    approved = await self.approval_callback(name, arguments)
+                    if not approved:
+                        logger.info("agent.tool_denied", tool=name)
+                        return ToolResult(
+                            tool_call_id="",
+                            name=name,
+                            content="Action denied by user.",
+                            is_error=True,
+                        )
+                except Exception as e:
+                    logger.exception("agent.approval_callback_error", tool=name)
+                    return ToolResult(
+                        tool_call_id="",
+                        name=name,
+                        content=f"Error during human approval process: {str(e)}",
+                        is_error=True,
+                    )
+
+            # Execution with isolation and crash protection
+            try:
+                logger.info("agent.tool_executing", tool=name)
+                result = await tool.execute(arguments)
+                return result
+            except Exception as e:
+                logger.exception("agent.tool_execution_failed", tool=name)
+                return ToolResult(
+                    tool_call_id="",
+                    name=name,
+                    content=f"Unexpected error during '{name}' execution: {str(e)}",
+                    is_error=True,
+                )
