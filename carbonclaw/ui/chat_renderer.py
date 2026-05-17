@@ -201,7 +201,9 @@ class ChatRenderer:
             # Show a compact preview of arguments
             filtered = {k: v for k, v in arguments.items() if len(str(v)) < 150}
             if filtered:
-                arg_str = " " + Text(json.dumps(filtered), style="dim italic").markup
+                # Use a slightly brighter color for better readability (cyan/dim)
+                arg_content = json.dumps(filtered)
+                arg_str = f" [dim cyan]{arg_content}[/dim cyan]"
         
         self.console.print(f" [dim]──[/dim] {icon} [{style}]{name}[/{style}]{arg_str}")
 
