@@ -1,3 +1,3 @@
-"""CarbonClaw — AI-native runtime and orchestration system."""
+"""CarbonClaw — Sustainability-Focused, Local-First, and Privacy-First AI agent runtime."""
 
 __version__ = "0.1.1"

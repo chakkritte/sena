@@ -1,4 +1,4 @@
-# 🤖 CarbonClaw: AI-Native Runtime for Autonomous Software Engineering
+# 🤖 CarbonClaw: Sustainability-Focused, Local-First, and Privacy-First AI Agent Runtime
 
 ## 🌟 Overview
 CarbonClaw is an advanced, AI-native runtime designed to automate complex software engineering tasks, manage multi-agent collaboration, and facilitate self-evolving research workflows. It acts as a powerful orchestration layer, allowing human users to direct sophisticated, multi-step processes that span planning, coding, testing, reviewing, and documentation.

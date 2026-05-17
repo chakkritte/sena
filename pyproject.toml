@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "carbonclaw"
 version = "0.1.0"
-description = "CarbonClaw — AI-native runtime and orchestration system for autonomous software engineering, research workflows, and multi-agent collaboration."
+description = "CarbonClaw — Sustainability-Focused, Local-First, and Privacy-First AI agent runtime for autonomous software engineering."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.12"
