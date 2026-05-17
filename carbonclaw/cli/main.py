@@ -56,10 +56,19 @@ def main(
         raise typer.Exit()
 
 
+# Global session state for auto-accept
+_SESSION_AUTO_ACCEPT = False
+
+
 async def cli_approval_callback(name: str, arguments: dict[str, Any]) -> bool:
     """Consolidated CLI approval callback for all tools."""
+    global _SESSION_AUTO_ACCEPT
+    
+    if _SESSION_AUTO_ACCEPT:
+        return True
+
     from rich.panel import Panel
-    from rich.prompt import Confirm
+    from rich.prompt import Prompt
     from rich.syntax import Syntax
     from rich.text import Text
     import json
@@ -90,7 +99,18 @@ async def cli_approval_callback(name: str, arguments: dict[str, Any]) -> bool:
         )
     )
     
-    return Confirm.ask("Proceed?")
+    console.print(" [bold white]Proceed?[/bold white]")
+    console.print(" [bold green]y[/bold green] - Yes")
+    console.print(" [bold yellow]a[/bold yellow] - Auto-Accept for this task")
+    console.print(" [bold red]n[/bold red] - No")
+    
+    choice = Prompt.ask("", choices=["y", "a", "n"], default="y", show_choices=False)
+    
+    if choice == "a":
+        _SESSION_AUTO_ACCEPT = True
+        return True
+    
+    return choice == "y"
 
 
 # Import command modules to register them
