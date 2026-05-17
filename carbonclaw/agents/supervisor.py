@@ -33,8 +33,14 @@ from carbonclaw.tools.shell import ShellTool
 logger = structlog.get_logger()
 
 
+from carbonclaw.agents.research import ResearchAgent
+from carbonclaw.tools.nodejs import RunNodeJSTool
+from carbonclaw.prompts.pptxgenjs_context import PPTXGENJS_SYSTEM_CONTEXT
+from carbonclaw.core.models import TaskType
+
+
 class SupervisorAgent:
-    """Coordinates Planner, Coding, and Review agents using the event bus.
+    """Coordinates Specialized agents using the event bus.
 
     Delegates tasks to the most appropriate agent, monitors progress,
     and routes results back to the caller.
@@ -51,7 +57,7 @@ class SupervisorAgent:
         from carbonclaw.config.settings import CarbonClawConfig
         
         self.provider = provider
-        self.tools = tools
+        self.tools = tools + [RunNodeJSTool()] # Ensure Node.js is available
         self.memory = memory
         self.model = model
         self.approval_callback = approval_callback
@@ -63,15 +69,23 @@ class SupervisorAgent:
         overrides = config.agent_overrides
 
         # Helper to create agent with optional override
-        def create_agent(cls: type[ReactAgent], name: str) -> ReactAgent:
+        def create_agent(cls: type[ReactAgent], name: str, system_ext: str = "") -> ReactAgent:
             target_model = overrides.get(name, "auto")
-            if target_model == "auto" or target_model is None:
-                return cls(provider, tools, memory, model, approval_callback=approval_callback)
             
-            # If overridden, create a specific provider/model for this agent
-            # For simplicity, we assume model name contains provider info or use default
-            # In a full impl, we'd parse "openai:gpt-4o"
-            return cls(provider, tools, memory, target_model, approval_callback=approval_callback)
+            use_model = model
+            if target_model != "auto" and target_model is not None:
+                use_model = target_model
+                
+            agent = cls(
+                provider, 
+                self.tools, 
+                memory, 
+                use_model, 
+                approval_callback=approval_callback
+            )
+            if system_ext:
+                agent.system_prompt += "\n\n" + system_ext
+            return agent
 
         # Register agents
         self._agents["planner"] = create_agent(PlannerAgent, "planner")
@@ -79,6 +93,29 @@ class SupervisorAgent:
         self._agents["review"] = create_agent(ReviewAgent, "review")
         self._agents["qa"] = create_agent(QAAgent, "qa")
         self._agents["docs"] = create_agent(DocsAgent, "docs")
+        self._agents["research"] = create_agent(ResearchAgent, "research")
+
+    async def run(self, task: str) -> str:
+        """Main entry point: classify and execute."""
+        from carbonclaw.routing.classifier import classify_task
+        task_type = classify_task(task)
+        
+        logger.info("supervisor.task_classified", type=task_type.value)
+
+        # Special handling for Research
+        if task_type == TaskType.RESEARCH:
+            agent = self._agents["research"]
+            if isinstance(agent, ResearchAgent):
+                result = await agent.research(task)
+                return result.report
+
+        # Special handling for Slides
+        if task_type == TaskType.SLIDES:
+            # Re-init coding agent with extra context
+            self._agents["coding"].system_prompt += "\n\n" + PPTXGENJS_SYSTEM_CONTEXT
+
+        # Default multi-agent pipeline (Plan -> Code -> Review)
+        return await self._orchestrate_pipeline(task)
 
     async def delegate(
         self,

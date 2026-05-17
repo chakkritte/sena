@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from carbonclaw.core.router import SmartRouter, RoutingStrategy, ProviderStats
+from carbonclaw.core.router import SmartRouter, RoutingStrategy
 from carbonclaw.config.settings import CarbonClawConfig
 
 @pytest.fixture
@@ -24,11 +24,11 @@ def test_calculate_complexity(router):
 
 def test_routing_sustainability(router):
     # Simple task should go to ollama
-    p, m = router.route("Hello world", strategy=RoutingStrategy.SUSTAINABILITY)
+    p, m, t = router.route("Hello world", strategy=RoutingStrategy.SUSTAINABILITY)
     assert p == "ollama"
     
     # Complex task should go to default cloud provider
-    p, m = router.route("Refactor the entire architectural pattern of this deep system", strategy=RoutingStrategy.SUSTAINABILITY)
+    p, m, t = router.route("Refactor the entire architectural pattern of this deep system", strategy=RoutingStrategy.SUSTAINABILITY)
     assert p == "openai"
 
 def test_metrics_learning(router):
@@ -49,5 +49,5 @@ def test_unhealthy_provider(router):
     assert router.stats["openai"].is_healthy is False
     
     # Routing should avoid openai now
-    p, m = router.route("Complex task", strategy=RoutingStrategy.BALANCED)
+    p, m, t = router.route("Complex task", strategy=RoutingStrategy.BALANCED)
     assert p != "openai"

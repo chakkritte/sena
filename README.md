@@ -18,7 +18,9 @@ curl -fsSL https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.
 - **Strictly Typed**: 100% Mypy compliance for enterprise reliability.
 - **Observability**: Built-in OpenTelemetry tracing for monitoring execution paths and token costs.
 - **Sustainability**: Real-time carbon emission tracking via `codecarbon` and proactive recommendations for local/greener models on simple tasks.
-- **Smart Routing**: Autonomous model selection based on task complexity, latency, and carbon footprint (inspired by OpenClaude).
+- **Advanced Research**: Multi-step Map-Reduce research pipeline for deep web analysis and comprehensive report generation.
+- **Slide Generation**: Automated PowerPoint generation via `PptxGenJS` integration and specialized slide agents.
+- **Smart Routing**: Autonomous model selection based on task type (Coding, Research, Slides) and complexity (inspired by OpenClaude).
 - **Agent Overrides**: Pin specific agents (Planner, Coding, Review) to different models/providers for maximum efficiency.
 - **Privacy First**: Built-in `/audit` command to scan conversation history for potential data leaks.
 - **Advanced Web**: `/fetch` command for JS-rendered web scraping using a full browser engine.
@@ -54,6 +56,7 @@ The `carbonclaw chat` command provides a modern AI coding CLI experience:
 | **Smart Routing** | `/strategy <mode>` toggles routing (sustainability, latency, balanced) |
 | **Provider Setup** | `/provider <name>` interactively switch LLM providers |
 | **Advanced Fetch** | `/fetch <url>` renders JS-heavy pages via Playwright |
+| **Deep Research** | `/research <query>` executes Map-Reduce analysis pipeline |
 | **Privacy Audit** | `/audit` scans history for potential PII or secret leaks |
 | **Open editor** | `/editor` opens `$EDITOR` to compose long messages |
 | **Slash commands** | `/help`, `/clear`, `/undo`, `/redo`, `/mode`, `/compact`, `/export`, `/import` |
@@ -67,6 +70,7 @@ For detailed guides, architecture, and advanced usage, see [CLAUDE.md](./CLAUDE.
 ## 📅 Roadmap
 
 - [x] Multi-agent (Plan/Code/Review/QA/Docs)
+- [x] Map-Reduce Research Pipeline & Slide Generation
 - [x] Human-in-the-Loop & Self-Evolution
 - [x] Browser Automation & OpenTelemetry
 - [x] Carbon Emission Tracking & Green Recommendations

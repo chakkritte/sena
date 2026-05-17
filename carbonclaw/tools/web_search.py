@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from ddgs import DDGS
+
 
 from carbonclaw.core.base import BaseTool
 from carbonclaw.core.models import ToolResult
@@ -21,7 +21,7 @@ class WebSearchTool(BaseTool):
         "Search the web for a query and return top results with title, URL, and snippet. "
         "Uses DuckDuckGo API (no API key required)."
     )
-    input_schema = {
+    parameters = {
         "type": "object",
         "properties": {
             "query": {
@@ -81,6 +81,7 @@ class WebSearchTool(BaseTool):
 
     async def _search(self, query: str, max_results: int) -> list[dict[str, str]]:
         """Fetch results using ddgs library."""
+        from duckduckgo_search import DDGS
         results: list[dict[str, str]] = []
         
         # DDGS is synchronous, but we can run it in a thread pool to avoid blocking

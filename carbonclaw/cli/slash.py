@@ -171,6 +171,11 @@ class SlashRegistry:
             _cmd_audit,
         )
         self.register(
+            "research",
+            "Perform deep web research using Map-Reduce pipeline.",
+            _cmd_research,
+        )
+        self.register(
             "mode",
             "Switch agent mode (normal, plan, code, review, qa, docs).",
             _cmd_mode,
@@ -327,6 +332,44 @@ async def _cmd_model(_messages: list[Message], args: str, _registry: SlashRegist
 
 async def _cmd_cost(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
     return SlashResult(output="[dim]Cost tracking (tokens) is not yet implemented.[/dim]")
+
+
+async def _cmd_research(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+    """Perform deep research."""
+    query = args.strip()
+    if not query:
+        return SlashResult(output="[red]Please provide a research query.[/red]")
+    
+    from carbonclaw.agents.research import ResearchAgent
+    from carbonclaw.providers.registry import ProviderRegistry
+    from carbonclaw.memory.sqlite import SQLiteMemory
+    from carbonclaw.config.settings import CarbonClawConfig
+    from carbonclaw.ui.streaming import StreamingDisplay
+    from carbonclaw.telemetry.carbon import track_carbon
+    
+    config = CarbonClawConfig()
+    provider = ProviderRegistry.create(config.default_provider, config)
+    memory = SQLiteMemory()
+    
+    agent = ResearchAgent(provider, [], memory)
+    
+    console = Console()
+    console.print(f"🔍 [bold blue]Starting Deep Research:[/bold blue] {query}")
+    
+    with track_carbon("research_pipeline") as ct:
+        with StreamingDisplay(console, title=" Researching... ") as stream:
+            # We wrap the async call
+            try:
+                result = await agent.research(query)
+                stream.append(result.report)
+            except Exception as e:
+                return SlashResult(output=f"[red]Research failed:[/red] {str(e)}")
+
+        emissions = ct.last_emissions
+        footer = f"\n\n🌱 [dim]Research complete. {len(result.sources)} sources analyzed. Emissions: {emissions:.6f} kg CO2[/dim]"
+        console.print(footer)
+        
+    return SlashResult(output=None) # Already printed
 
 
 async def _cmd_audit(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:

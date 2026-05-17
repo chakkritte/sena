@@ -60,14 +60,25 @@ This pattern is duplicated in three places (`ReactAgent.run`, `ReactAgent.stream
 
 The loop does not distinguish between "thinking" and "acting" — it is purely message-driven based on whether the model emits tool calls.
 
-### Supervisor Orchestration
+### Smart Task Routing
 
-`SupervisorAgent` (`carbonclaw/agents/supervisor.py`) coordinates three specialized agents via an `EventBus`:
-- **Planner** — breaks tasks into steps
-- **Coding** — implements the plan
-- **Review** — reviews the implementation
+CarbonClaw uses a **SmartRouter** (`carbonclaw/core/router.py`) to dynamically select the best provider and model for each task. The decision is based on:
+- **Task Type**: Detected via keyword matching in `carbonclaw/routing/classifier.py` (Coding, Research, Slides, General).
+- **Task Complexity**: Heuristic score (0.0 to 1.0) based on prompt length and keywords.
+- **Sustainability Strategy**: Prioritizes local models (Ollama) for simple tasks to minimize CO2 emissions.
+- **Metrics Tracking**: Learns from provider latency and error rates using Exponential Moving Average (EMA).
 
-The supervisor does not stream between agents; it delegates sequentially and concatenates results. The `run_workflow()` method enforces the plan → code → review pipeline. Agents are instantiated once at supervisor creation and reused.
+### Advanced Agents & Pipelines
+
+- **SupervisorAgent** (`carbonclaw/agents/supervisor.py`): Orchestrates specialized agents. Handles `RESEARCH` by delegating to `ResearchAgent` and `SLIDES` by injecting `PptxGenJS` context.
+- **ResearchAgent** (`carbonclaw/agents/research.py`): Implements a **Map-Reduce** pipeline. It searches via DuckDuckGo, fetches pages via Playwright, summarizes each source in parallel (Map), and synthesizes a final report (Reduce).
+- **ReactAgent** (`carbonclaw/agents/base.py`): The foundation for all tool-using agents. Uses `repair_json` to handle malformed outputs from smaller local models.
+
+### Specialized Tools
+
+- **RunNodeJSTool** (`carbonclaw/tools/nodejs.py`): Executes Node.js code snippets in a temp directory, supporting dynamic `npm install` and Base64 file returns. Used for PowerPoint generation via `pptxgenjs`.
+- **BrowserTool** (`carbonclaw/tools/browser.py`): High-fidelity web interaction using Playwright.
+- **WebSearchTool** (`carbonclaw/tools/web_search.py`): DuckDuckGo search integration via `duckduckgo_search`.
 
 ### Chat UI Rendering
 

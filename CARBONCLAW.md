@@ -49,8 +49,18 @@ These modules manage the state and long-term recall of the system.
 
 ### ⚙️ `carbonclaw/providers/` & `carbonclaw/core/router.py` (The Connections)
 This is the critical abstraction layer. It allows the core logic to remain agnostic of the underlying LLM provider.
-*   **Smart Router:** Dynamically selects the best model/provider based on task complexity, latency, and sustainability goals. It prioritizes local models (Ollama) for simple tasks to minimize carbon footprint.
-*   It includes adapters for major models (OpenAI, Gemini, Anthropic, Ollama) ensuring seamless swapping and rate-limit handling.
+*   **Smart Router:** Dynamically selects the best model/provider based on **Task Type** (Coding, Research, Slides) and **Complexity**. It prioritizes local models (Ollama) for simple tasks.
+*   **Task Classifier:** Keyword-based classification in `routing/classifier.py` for zero-latency categorization.
+
+### 🔬 `carbonclaw/agents/research.py` (Advanced Research)
+Implements a state-of-the-art **Map-Reduce** research pipeline:
+1.  **Search**: DuckDuckGo search for relevant sources.
+2.  **Fetch**: High-fidelity page extraction using Playwright & Trafilatura.
+3.  **Map**: Parallel summarization of each source using fast local models.
+4.  **Reduce**: Synthesis of all summaries into a cited, structured report using high-capacity models.
+
+### 🛠️ `carbonclaw/tools/nodejs.py` (Extended Capabilities)
+Enables JavaScript/Node.js execution for specialized tasks like PowerPoint generation via `PptxGenJS`.
 
 ### 🖥️ `carbonclaw/cli/` (The Interface)
 The primary user-facing entry points. These scripts wrap the complex agent interactions into simple, actionable CLI commands (e.g., `carbonclaw run`, `carbonclaw chat`).
