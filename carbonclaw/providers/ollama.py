@@ -33,6 +33,10 @@ class OllamaProvider(BaseProvider):
         base_url: str = "http://localhost:11434",
         default_model: str = "llama3.2",
     ) -> None:
+        super().__init__({
+            "base_url": base_url,
+            "default_model": default_model,
+        })
         self.base_url = base_url.rstrip("/")
         self.default_model = default_model
         # Ollama exposes an OpenAI-compatible endpoint at /v1

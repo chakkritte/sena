@@ -38,6 +38,10 @@ class GeminiProvider(BaseProvider):
         api_key: str,
         default_model: str = "gemini-2.0-flash-exp",
     ) -> None:
+        super().__init__({
+            "api_key": api_key,
+            "default_model": default_model,
+        })
         self.client = Client(api_key=api_key)
         self.default_model = default_model
         self.info = ProviderInfo(

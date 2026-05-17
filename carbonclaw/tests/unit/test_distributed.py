@@ -24,8 +24,9 @@ def test_serializer_roundtrip() -> None:
 
 
 @pytest.mark.asyncio
-async def test_task_queue_submit_complete() -> None:
-    queue = TaskQueue()
+async def test_task_queue_submit_complete(tmp_path) -> None:
+    db_path = tmp_path / "tasks.db"
+    queue = TaskQueue(db_path=db_path)
     task = Task(agent_type="coding", payload={"task": "hello"})
     await queue.submit(task)
     assert len(queue) == 1
@@ -42,8 +43,9 @@ async def test_task_queue_submit_complete() -> None:
 
 
 @pytest.mark.asyncio
-async def test_task_queue_fail() -> None:
-    queue = TaskQueue()
+async def test_task_queue_fail(tmp_path) -> None:
+    db_path = tmp_path / "tasks_fail.db"
+    queue = TaskQueue(db_path=db_path)
     task = Task(agent_type="coding")
     await queue.submit(task)
 
@@ -58,8 +60,9 @@ async def test_task_queue_fail() -> None:
 
 
 @pytest.mark.asyncio
-async def test_task_queue_cancel() -> None:
-    queue = TaskQueue()
+async def test_task_queue_cancel(tmp_path) -> None:
+    db_path = tmp_path / "tasks_cancel.db"
+    queue = TaskQueue(db_path=db_path)
     task = Task(agent_type="coding")
     await queue.submit(task)
 

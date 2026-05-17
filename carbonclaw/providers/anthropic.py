@@ -40,6 +40,11 @@ class AnthropicProvider(BaseProvider):
         base_url: str | None = None,
         default_model: str = "claude-3-5-sonnet-20241022",
     ) -> None:
+        super().__init__({
+            "api_key": api_key,
+            "base_url": base_url,
+            "default_model": default_model,
+        })
         self.client = AsyncAnthropic(api_key=api_key, base_url=base_url)
         self.default_model = default_model
         self.info = ProviderInfo(

@@ -42,7 +42,33 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 class OpenAIProvider(BaseProvider):
     """Provider adapter for OpenAI and OpenAI-compatible endpoints."""
 
-    # ... (init unchanged) ...
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str | None = None,
+        default_model: str = "gpt-4o-mini",
+        name: str = "openai",
+    ) -> None:
+        # BaseProvider expects a config dict
+        super().__init__({
+            "api_key": api_key,
+            "base_url": base_url,
+            "default_model": default_model,
+        })
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self.default_model = default_model
+        self.name = name
+        self.info = ProviderInfo(
+            name=name,
+            supports_streaming=True,
+            supports_tools=True,
+            supports_vision=True,
+            supports_embeddings=True,
+            default_model=default_model,
+            requires_api_key=True,
+            base_url=base_url or "https://api.openai.com/v1",
+        )
+        self._tool_accum = ToolAccumulator()
 
     @retry(
         stop=stop_after_attempt(3),
