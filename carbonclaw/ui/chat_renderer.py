@@ -185,7 +185,7 @@ class ChatRenderer:
         return info.get(name, ("🛠️", "bold white"))
 
     def add_tool_call(self, name: str, arguments: dict[str, Any] | None = None) -> None:
-        """Show a tool call indicator with optional arguments."""
+        """Show a tool call indicator with optional arguments (Compact)."""
         icon, style = self._get_tool_info(name)
         self.messages.append(
             RenderedMessage(
@@ -195,27 +195,15 @@ class ChatRenderer:
             )
         )
         
-        title = f" {icon} {name} "
-        width = min(self.console.width - 2, 100)
-        
         arg_str = ""
         if arguments:
             import json
             # Show a compact preview of arguments
-            filtered = {k: v for k, v in arguments.items() if len(str(v)) < 100}
+            filtered = {k: v for k, v in arguments.items() if len(str(v)) < 150}
             if filtered:
-                arg_str = "\n" + Text(json.dumps(filtered, indent=2), style="dim").markup
+                arg_str = " " + Text(json.dumps(filtered), style="dim italic").markup
         
-        self.console.print(
-            Panel(
-                Text.from_markup(f"[{style}]Running...[/{style}]{arg_str}"),
-                border_style="dim",
-                title=title,
-                title_align="center",
-                padding=(0, 2),
-                width=width,
-            )
-        )
+        self.console.print(f" [dim]──[/dim] {icon} [{style}]{name}[/{style}]{arg_str}")
 
     def add_tool_result(self, name: str, result: str, is_error: bool = False) -> None:
         """Update or add a tool result and print it."""
