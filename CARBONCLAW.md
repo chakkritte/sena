@@ -47,8 +47,9 @@ These modules manage the state and long-term recall of the system.
 *   **Context:** Manages the current session state, history, and immediate variables.
 *   **Memory:** Provides persistent, long-term memory, allowing the system to retain knowledge across multiple sessions (e.g., user preferences, project history).
 
-### ⚙️ `carbonclaw/providers/` (The Connections)
+### ⚙️ `carbonclaw/providers/` & `carbonclaw/core/router.py` (The Connections)
 This is the critical abstraction layer. It allows the core logic to remain agnostic of the underlying LLM provider.
+*   **Smart Router:** Dynamically selects the best model/provider based on task complexity, latency, and sustainability goals. It prioritizes local models (Ollama) for simple tasks to minimize carbon footprint.
 *   It includes adapters for major models (OpenAI, Gemini, Anthropic, Ollama) ensuring seamless swapping and rate-limit handling.
 
 ### 🖥️ `carbonclaw/cli/` (The Interface)

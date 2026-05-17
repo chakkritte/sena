@@ -18,6 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.
 - **Strictly Typed**: 100% Mypy compliance for enterprise reliability.
 - **Observability**: Built-in OpenTelemetry tracing for monitoring execution paths and token costs.
 - **Sustainability**: Real-time carbon emission tracking via `codecarbon` and proactive recommendations for local/greener models on simple tasks.
+- **Smart Routing**: Autonomous model selection based on task complexity, latency, and carbon footprint (inspired by OpenClaude).
 - **Human-in-the-Loop**: Mandatory approval gates for sensitive system operations, with colored diff previews.
 
 ## 🛠 Quick Start

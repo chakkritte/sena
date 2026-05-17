@@ -404,7 +404,23 @@ async def _chat_loop(
     # Register MCP tools
     mcp_clients = await register_mcp_tools(tools, config)
 
+    from carbonclaw.core.router import SmartRouter, RoutingStrategy
+    router = SmartRouter(config)
+
     slash = SlashRegistry()
+    
+    async def _cmd_strategy(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+        """Change the routing strategy."""
+        try:
+            strategy = RoutingStrategy(args.strip().lower())
+            config.routing_strategy = strategy.value
+            return SlashResult(output=f"Routing strategy updated to: [bold green]{strategy.value}[/bold green]")
+        except ValueError:
+            valid = ", ".join([s.value for s in RoutingStrategy])
+            return SlashResult(output=f"[red]Invalid strategy.[/red] Valid: {valid}")
+
+    slash.register("strategy", "Change model routing strategy (sustainability, latency, balanced).", _cmd_strategy)
+    
     ctx_mgr = ContextManager(provider, model=model)
 
     renderer = ChatRenderer(console, model=model, provider=provider_name)
@@ -488,20 +504,56 @@ async def _chat_loop(
             # Regular message
             messages.append(Message(role="user", content=user_input))
             
+            # Dynamic routing if allowed
+            active_provider = provider
+            active_model = model
+            
+            if not provider_name or provider_name == "auto":
+                strat_name = config.routing_strategy
+                try:
+                    strat = RoutingStrategy(strat_name)
+                except ValueError:
+                    strat = RoutingStrategy.SUSTAINABILITY
+                
+                p_name, m_id = router.route(user_input, messages[:-1], strategy=strat)
+                
+                curr_p_name = active_provider.__class__.__name__.lower().replace("provider", "")
+                if p_name != curr_p_name:
+                    try:
+                        active_provider = ProviderRegistry.create(p_name, config)
+                        active_model = m_id
+                        console.print(f"[dim]⚡ Smart routed to [bold]{p_name}/{m_id}[/bold] ({strat_name} strategy)[/dim]")
+                    except Exception:
+                        pass # Fallback
+
             # Record history
             with open(history_path, "a", encoding="utf-8") as f:
                 f.write(user_input.replace("\n", "\\n") + "\n")
 
             # Run agent turn
-            await _run_agent_turn(
-                messages,
-                provider,
-                tools,
-                model,
-                config,
-                streaming=streaming,
-                renderer=renderer,
-            )
+            import time
+            start_t = time.time()
+            success = True
+            try:
+                await _run_agent_turn(
+                    messages,
+                    active_provider,
+                    tools,
+                    active_model,
+                    config,
+                    streaming=streaming,
+                    renderer=renderer,
+                )
+            except Exception as e:
+                success = False
+                raise e
+            finally:
+                latency = (time.time() - start_t) * 1000
+                router.update_metrics(
+                    active_provider.__class__.__name__.lower().replace("provider", ""), 
+                    latency, 
+                    success
+                )
 
     finally:
         # Disconnect MCP clients safely

@@ -165,6 +165,9 @@ class CarbonClawConfig(BaseSettings):
     carbon_offline_mode: bool = False
     carbon_country_iso_code: str | None = None
 
+    # Routing
+    routing_strategy: str = "sustainability"  # sustainability, latency, balanced
+
     # Memory
     memory_backend: str = "sqlite"
     memory_path: str | None = None
