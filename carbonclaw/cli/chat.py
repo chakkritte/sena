@@ -553,9 +553,18 @@ async def _chat_loop(
                     streaming=streaming,
                     renderer=renderer,
                 )
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Interrupted.[/yellow]")
+                if renderer:
+                    renderer.end_assistant()
+                success = False
+                # We don't re-raise here so the user can continue or exit via prompt
             except Exception as e:
                 success = False
-                raise e
+                if renderer:
+                    renderer.end_assistant()
+                console.print(f"\n[red]Error during agent execution:[/red] {str(e)}")
+                # For critical errors we might want to log more, but for chat we stay alive
             finally:
                 latency = (time.time() - start_t) * 1000
                 router.update_metrics(
