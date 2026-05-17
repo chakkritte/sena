@@ -17,6 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.
 - **Browser Automation**: Full web interaction and scraping via Playwright.
 - **Strictly Typed**: 100% Mypy compliance for enterprise reliability.
 - **Observability**: Built-in OpenTelemetry tracing for monitoring execution paths and token costs.
+- **Sustainability**: Real-time carbon emission tracking via `codecarbon` and proactive recommendations for local/greener models on simple tasks.
 - **Human-in-the-Loop**: Mandatory approval gates for sensitive system operations, with colored diff previews.
 
 ## 🛠 Quick Start
@@ -58,6 +59,7 @@ For detailed guides, architecture, and advanced usage, see [CLAUDE.md](./CLAUDE.
 - [x] Multi-agent (Plan/Code/Review/QA/Docs)
 - [x] Human-in-the-Loop & Self-Evolution
 - [x] Browser Automation & OpenTelemetry
+- [x] Carbon Emission Tracking & Green Recommendations
 - [x] **Phase 1: Chat UX Foundation** (multi-line input, ChatRenderer, draft preservation, history search)
 - [ ] **Phase 4: Event-Driven CI/CD Workflows**
 - [ ] **Phase 5: Advanced Graph Memory**

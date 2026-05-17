@@ -160,6 +160,11 @@ class CarbonClawConfig(BaseSettings):
     telemetry_enabled: bool = False
     telemetry_endpoint: str | None = None
 
+    # Carbon Tracking
+    carbon_tracking_enabled: bool = True
+    carbon_offline_mode: bool = False
+    carbon_country_iso_code: str | None = None
+
     # Memory
     memory_backend: str = "sqlite"
     memory_path: str | None = None
