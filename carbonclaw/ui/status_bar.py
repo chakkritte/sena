@@ -41,8 +41,8 @@ def get_short_path() -> str:
 
 
 def render_status_bar(
-    model: str,
-    provider: str,
+    model: str | None,
+    provider: str | None,
     messages: list[Message],
     max_tokens: int = 128000
 ) -> Panel:
@@ -52,13 +52,20 @@ def render_status_bar(
     branch = get_git_branch()
     
     # 2. Carbon
-    store = CarbonStore()
-    total_carbon = store.total_emissions()
+    try:
+        store = CarbonStore()
+        total_carbon = store.total_emissions()
+    except Exception:
+        total_carbon = 0.0
     
     # 3. Context Usage
     current_tokens = TokenCounter.count_messages(messages)
     usage_pct = int((current_tokens / max_tokens) * 100) if max_tokens > 0 else 0
     
+    # Display fallbacks
+    disp_model = model or "n/a"
+    disp_prov = provider or "n/a"
+
     # Color logic for usage
     usage_color = "green"
     if usage_pct > 80:
@@ -66,20 +73,20 @@ def render_status_bar(
     elif usage_pct > 50:
         usage_color = "yellow"
 
-    # Build the table
+    # Build the table with flexible column widths
     table = Table.grid(expand=True)
-    table.add_column(justify="left", style="dim", ratio=1)
-    table.add_column(justify="center", style="dim", ratio=1)
-    table.add_column(justify="center", style="dim", ratio=1)
-    table.add_column(justify="center", style="dim", ratio=1)
-    table.add_column(justify="right", style="dim", ratio=1)
+    table.add_column(justify="left", style="white")   # Path
+    table.add_column(justify="center", style="cyan")  # Branch
+    table.add_column(justify="center", style="bold green") # Carbon
+    table.add_column(justify="center", style="bold white") # Model
+    table.add_column(justify="right", style=usage_color)   # Context
 
     table.add_row(
-        Text.from_markup(f" 📂 [white]{path}[/white]"),
-        Text.from_markup(f" 🌿 [cyan]{branch}[/cyan]"),
-        Text.from_markup(f" 🌱 [bold green]{total_carbon:.4f} kg CO2[/bold green]"),
-        Text.from_markup(f" 🤖 [bold white]{provider}/{model}[/bold white]"),
-        Text.from_markup(f" 🧠 [{usage_color}]{usage_pct}% used[/{usage_color}] "),
+        f" 📂 {path}",
+        f" 🌿 {branch}",
+        f" 🌱 {total_carbon:.4f} kg CO2",
+        f" 🤖 {disp_prov}/{disp_model}",
+        f" 🧠 {usage_pct}% used ",
     )
 
     return Panel(
