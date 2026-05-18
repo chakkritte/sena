@@ -2,6 +2,8 @@
 
 CarbonClaw is a **Sustainability-Focused, Local-First, and Privacy-First** AI agent runtime for autonomous software engineering and self-evolving workflows.
 
+![CarbonClaw Demo](images/carbonclaw.png)
+
 ## 🚀 One-Line Installation
 
 ```bash
