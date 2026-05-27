@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "carbonclaw"
-version = "0.1.4"
+version = "0.1.5"
 description = "CarbonClaw — Sustainability-Focused, Local-First, and Privacy-First AI agent runtime for autonomous software engineering."
 readme = "README.md"
 license = { text = "MIT" }

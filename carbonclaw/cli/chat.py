@@ -15,6 +15,7 @@ import typer
 
 from carbonclaw.cli.main import app, console
 from carbonclaw.cli.slash import SlashRegistry
+from carbonclaw.config.settings import CarbonClawConfig
 from carbonclaw.context.manager import ContextManager
 from carbonclaw.core.models import CompletionRequest, Message, ToolCall, StreamChunk
 from carbonclaw.memory.sqlite import SQLiteMemory
