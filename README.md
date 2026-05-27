@@ -79,17 +79,22 @@ The `carbonclaw chat` command provides a modern AI coding CLI experience:
 
 For detailed guides, architecture, and advanced usage, see [CLAUDE.md](./CLAUDE.md).
 
-## 📅 Roadmap
+## 📅 Roadmap (Next 1-3 Months)
 
-- [x] Multi-agent (Plan/Code/Review/QA/Docs)
-- [x] Map-Reduce Research Pipeline & Slide Generation
-- [x] Human-in-the-Loop & Self-Evolution
-- [x] Browser Automation & OpenTelemetry
-- [x] Carbon Emission Tracking & Green Recommendations
-- [x] **Phase 1: Chat UX Foundation** (multi-line input, ChatRenderer, draft preservation, history search)
-- [ ] **Phase 4: Event-Driven CI/CD Workflows**
-- [ ] **Phase 5: Advanced Graph Memory**
-- [ ] **Phase 6: IDE Integration (LSP)**
+### Month 1: IDE Integration & Swarm Expansion
+- [ ] **Language Server Protocol (LSP)**: Launch `carbonclaw lsp` to provide autonomous background refactoring and inline architecture explanations directly inside VSCode and Neovim.
+- [ ] **Multi-Agent Debate UI**: Add a rich, interactive TUI for viewing Swarm Debates in real-time, allowing humans to interject and vote on agent proposals.
+- [ ] **Playwright Visual Testing**: Agents can write and execute visual regression tests using the integrated `VisionTool`.
+
+### Month 2: Proactive Automation & CI/CD
+- [ ] **Event-Driven Workflows**: Connect CarbonClaw to GitHub Webhooks to autonomously review PRs, flag security issues, and suggest architectural improvements before merge.
+- [ ] **Daemon Mode (Advanced `/heal`)**: Expand the self-healing CI to run as a persistent background service that monitors local file changes and auto-fixes lint/type errors on save.
+- [ ] **Automated Benchmark Dashboard**: A hosted dashboard comparing the carbon efficiency of open-source models based on CarbonClaw's anonymous telemetry data.
+
+### Month 3: Deep Repo Awareness & Ecosystem
+- [ ] **Advanced Graph Memory Expansion**: Connect the AST Knowledge Graph to Git history (blame, churn) to predict which files are most likely to introduce bugs during a refactor.
+- [ ] **Custom Plugin Ecosystem**: Stabilize the plugin API so users can publish and share custom tools (e.g., `carbonclaw-tool-aws`, `carbonclaw-tool-jira`).
+- [ ] **Local Model Fine-Tuning**: A CLI command to automatically export successful "lessons learned" and code fixes into a LoRA dataset for fine-tuning small local models.
 
 ## License
 
