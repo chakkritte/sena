@@ -55,6 +55,38 @@ class LearnRuleTool(BaseTool):
         )
 
 
+class LearnStrategyTool(BaseTool):
+    """Tool for agents to learn and persist strategic routing rules."""
+    
+    name = "learn_strategy"
+    description = (
+        "Permanently store a strategic routing adjustment based on performance analysis. "
+        "Use this if a specific model or provider consistently fails at a certain task type."
+    )
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "target_task_type": {"type": "string", "description": "The task type to adjust (e.g. coding, research, general)."},
+            "condition": {"type": "string", "description": "Condition when this applies (e.g. complexity > 0.8)."},
+            "action": {"type": "string", "description": "The routing action (e.g. prefer_cloud, force_openai)."},
+            "reason": {"type": "string", "description": "Why this adjustment is needed."},
+        },
+        "required": ["target_task_type", "action", "reason"],
+    }
+
+    def __init__(self, memory: BaseMemory) -> None:
+        self.memory = memory
+
+    async def execute(self, arguments: dict[str, Any]) -> ToolResult:
+        await self.memory.store(
+            content=json.dumps(arguments),
+            namespace="strategic_adjustments",
+            metadata={"source": "evolution_agent"},
+        )
+        logger.info("agent.learned_strategy", target=arguments.get("target_task_type"), action=arguments.get("action"))
+        return ToolResult(tool_call_id="", name=self.name, content="Strategy learned.")
+
+
 class EvolutionAgent(ReactAgent):
     """Agent that reflects on past interactions to extract lessons and evolve."""
 
@@ -76,12 +108,16 @@ class EvolutionAgent(ReactAgent):
                 "You are a Self-Evolution Agent. Your goal is to analyze agent interactions and extract 'lessons learned'. "
                 "1. Analyze the provided message history for inefficiencies, errors, or user corrections. "
                 "2. Formulate concise, actionable rules to prevent these issues in the future. "
-                "3. Use the 'learn_rule' tool to save these rules permanently. "
+                "3. Use the 'learn_rule' tool to save behavioral rules. "
+                "4. Use the 'learn_strategy' tool to adjust routing (e.g., if a local model fails complex tasks, tell the router to prefer cloud models for that task type). "
                 "Be critical but constructive. Only learn high-value rules that improve future performance."
             ),
             model=model,
             max_iterations=5,
         )
+        # Register both learning tools
+        self.tools.append(LearnRuleTool(memory))
+        self.tools.append(LearnStrategyTool(memory))
 
     async def reflect(self, history: list[Message]) -> None:
         """Analyze a conversation history and extract lessons."""

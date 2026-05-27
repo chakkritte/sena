@@ -445,7 +445,16 @@ async def _chat_loop(
             valid = ", ".join([s.value for s in RoutingStrategy])
             return SlashResult(output=f"[red]Invalid strategy.[/red] Valid: {valid}")
 
+    async def _cmd_isolate(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
+        """Enable sandboxing for the next turn."""
+        shell_tool = tools.get("shell")
+        if shell_tool:
+            setattr(shell_tool, "_sandbox_override", True)
+            return SlashResult(output="[bold yellow]Sandbox isolation enabled for the next shell command.[/bold yellow]")
+        return SlashResult(output="[red]Shell tool not found.[/red]")
+
     slash.register("strategy", "Change model routing strategy (sustainability, latency, balanced).", _cmd_strategy)
+    slash.register("isolate", "Enable Docker sandbox isolation for the next shell command.", _cmd_isolate)
     
     ctx_mgr = ContextManager(provider, model=model)
 

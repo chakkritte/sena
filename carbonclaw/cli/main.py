@@ -6,7 +6,7 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
+from rich.console import Console, Group
 
 app = typer.Typer(
     name="carbonclaw",
@@ -60,6 +60,22 @@ def main(
 _SESSION_AUTO_ACCEPT = False
 
 
+def _get_impact_analysis(name: str, arguments: dict[str, Any]) -> str:
+    """Provide a human-readable summary of the potential impact."""
+    if name == "shell":
+        cmd = arguments.get("command", "")
+        if any(kw in cmd for kw in ["rm ", "mv ", "delete", "kill"]):
+            return "[bold red]CRITICAL:[/bold red] This command may delete or move system/project files."
+        return "[bold yellow]MODERATE:[/bold yellow] Executes a shell command that may change system state."
+    elif name == "file_write":
+        return f"[bold blue]INFO:[/bold blue] Overwrites the file at [bold]{arguments.get('path')}[/bold]."
+    elif name == "file_patch":
+        return f"[bold blue]INFO:[/bold blue] Applies changes to [bold]{arguments.get('path')}[/bold]."
+    elif name == "browser":
+        return f"[bold cyan]INFO:[/bold cyan] Interacts with the web at [bold]{arguments.get('url', 'current page')}[/bold]."
+    return "[bold white]UNKNOWN:[/bold white] Review the arguments carefully."
+
+
 async def cli_approval_callback(name: str, arguments: dict[str, Any]) -> bool:
     """Consolidated CLI approval callback for all tools."""
     global _SESSION_AUTO_ACCEPT
@@ -71,8 +87,10 @@ async def cli_approval_callback(name: str, arguments: dict[str, Any]) -> bool:
     from rich.prompt import Prompt
     from rich.syntax import Syntax
     from rich.text import Text
+    from rich.columns import Columns
     import json
 
+    impact = _get_impact_analysis(name, arguments)
     title = f" Approve action: [bold]{name}?[/bold] "
     
     if name == "file_patch":
@@ -89,60 +107,37 @@ async def cli_approval_callback(name: str, arguments: dict[str, Any]) -> bool:
         args_json = json.dumps(arguments, indent=2)
         content = Text(args_json, style="cyan")
 
+    console.print()
     console.print(
         Panel(
-            content,
+            Group(
+                Text.from_markup(f"[bold]Impact Analysis:[/bold] {impact}"),
+                Text(""),
+                content,
+            ),
             title=title,
             title_align="center",
             border_style="dim",
-            padding=(0, 1),
+            padding=(1, 2),
         )
     )
     
-    # Modern Multiple Choice Selection
+    # Modern Selection UI
     options = [
-        {"label": "Yes", "value": "y", "style": "bold green"},
-        {"label": "Auto-Accept for this task", "value": "a", "style": "bold yellow"},
-        {"label": "No", "value": "n", "style": "bold red"},
+        "[bold green](y)es[/bold green]",
+        "[bold yellow](a)uto-accept[/bold yellow]",
+        "[bold red](n)o[/bold red]",
     ]
-    
-    console.print(" [bold white]Proceed?[/bold white] [dim](Use arrows or numbers)[/dim]")
-    
-    # We use a simple but effective selection UI
-    from rich.live import Live
-    import sys
-    
-    selected_idx = 0
-    
-    def render_options(current_idx: int) -> Group:
-        lines = []
-        for i, opt in enumerate(options):
-            prefix = "[bold green]❯[/bold green]" if i == current_idx else " "
-            label = f"[{opt['style']}]{opt['label']}[/{opt['style']}]"
-            lines.append(Text.from_markup(f" {prefix} {i+1}. {label}"))
-        return Group(*lines)
-
-    # Simple keyboard listener for the live display
-    # In a real environment, we'd use a library like 'questionary' or 'inquirer',
-    # but we can implement a robust version using rich.Live and sys.stdin
+    console.print(f"  [bold white]Proceed?[/bold white]  { '  '.join(options) }")
     
     try:
-        # Fallback to standard prompt if not a TTY or for simplicity in this turn
-        # In the next turn, I can implement the full interactive loop if requested.
-        # For now, let's use a structured list display that looks better.
-        for i, opt in enumerate(options):
-            console.print(f"  [bold cyan]{i+1}[/bold cyan]. [{opt['style']}]{opt['label']}[/{opt['style']}]")
-        
         choice = Prompt.ask(
-            "\n [bold white]Selection[/bold white]", 
-            choices=["1", "2", "3", "y", "a", "n"], 
-            default="1", 
+            "  [bold cyan]Selection[/bold cyan]", 
+            choices=["y", "a", "n"], 
+            default="y", 
             show_choices=False
         )
-        
-        mapping = {"1": "y", "2": "a", "3": "n", "y": "y", "a": "a", "n": "n"}
-        final_choice = mapping.get(choice, "n")
-        
+        final_choice = choice.lower()
     except (KeyboardInterrupt, EOFError):
         final_choice = "n"
     
@@ -165,6 +160,7 @@ from carbonclaw.cli import (  # noqa: E402, F401
     plan,
     run,
     snapshot,
+    status,
     telemetry_cmd,
     tui_cmd,
     update,

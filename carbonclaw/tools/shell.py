@@ -93,6 +93,15 @@ class ShellTool(BaseTool):
         command = arguments.get("command", "")
         timeout = arguments.get("timeout", 60)
         cwd = arguments.get("cwd") or None
+        
+        from carbonclaw.config.settings import CarbonClawConfig
+        config = CarbonClawConfig()
+        
+        # Determine if we should use sandbox
+        use_sandbox = config.sandbox_enabled
+        # Check for context override (e.g. from /isolate command)
+        if hasattr(self, "_sandbox_override"):
+            use_sandbox = getattr(self, "_sandbox_override")
 
         if not command:
             return ToolResult(
@@ -102,7 +111,33 @@ class ShellTool(BaseTool):
                 is_error=True,
             )
 
-        logger.info("shell.execute", command=command[:80], cwd=cwd)
+        logger.info("shell.execute", command=command[:80], cwd=cwd, sandbox=use_sandbox)
+
+        if use_sandbox:
+            try:
+                from carbonclaw.sandbox.docker import DockerSandbox
+                sandbox = DockerSandbox(
+                    image=config.sandbox_image,
+                    timeout=timeout,
+                )
+                result = await sandbox.execute(command, cwd=cwd)
+                output = result.stdout
+                if result.stderr:
+                    output += f"\n\n[stderr]\n{result.stderr}"
+                return ToolResult(
+                    tool_call_id="",
+                    name=self.name,
+                    content=output,
+                    is_error=result.exit_code != 0,
+                )
+            except Exception as e:
+                logger.error("shell.sandbox_failed", error=str(e))
+                return ToolResult(
+                    tool_call_id="",
+                    name=self.name,
+                    content=f"Sandbox execution failed: {e}. Falling back to local if allowed.",
+                    is_error=True,
+                )
 
         try:
             proc = await asyncio.create_subprocess_shell(

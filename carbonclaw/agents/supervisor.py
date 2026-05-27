@@ -241,29 +241,45 @@ class SupervisorAgent:
 
             return f"## Plan\n{plan}\n\n## Implementation\n{code_result}"
 
-    async def stream_workflow(
-        self,
-        task: str,
-        auto_plan: bool = True,
-        auto_review: bool = True,
-    ) -> AsyncIterator[str]:
-        """Stream a full workflow with labeled sections."""
-        yield "# Planning\n\n"
-        if auto_plan:
-            async for chunk in self.stream_delegate("planner", f"Plan: {task}"):
-                yield chunk
-            yield "\n\n"
+    async def swarm_debate(self, task: str) -> str:
+        """Execute a 'swarm debate' where multiple agents analyze and iterate on a solution."""
+        from carbonclaw.telemetry.otel import trace_span
 
-        yield "# Implementation\n\n"
-        async for chunk in self.stream_delegate("coding", task):
-            yield chunk
-        yield "\n\n"
+        with trace_span("supervisor.swarm", attributes={"task": task[:100]}):
+            logger.info("supervisor.swarm.start", task=task[:80])
 
-        if auto_review:
-            yield "# Review\n\n"
-            async for chunk in self.stream_delegate("review", f"Review: {task}"):
-                yield chunk
-            yield "\n"
+            # 1. Generate initial solution (Coding)
+            initial_solution = await self.delegate("coding", task)
+            
+            # 2. Parallel Critique (Review & QA)
+            results = await asyncio.gather(
+                self.delegate("review", f"Critique this solution for security and style:\n\n{initial_solution}"),
+                self.delegate("qa", f"Identify potential edge cases and testing gaps for this solution:\n\n{initial_solution}")
+            )
+            review_critique, qa_critique = results
+
+            # 3. Synthesis & Final Polish (Coding)
+            synthesis_prompt = (
+                f"Original Task: {task}\n\n"
+                f"Initial Solution:\n{initial_solution}\n\n"
+                f"Reviewer Feedback:\n{review_critique}\n\n"
+                f"QA Feedback:\n{qa_critique}\n\n"
+                "Please provide a final, optimized solution addressing all feedback."
+            )
+            final_solution = await self.delegate("coding", synthesis_prompt)
+
+            return (
+                f"## Final Solution (Swarm Synthesis)\n{final_solution}\n\n"
+                f"--- Debate History ---\n"
+                f"### Initial Draft\n{initial_solution[:500]}...\n\n"
+                f"### Security/Style Review\n{review_critique[:500]}...\n\n"
+                f"### QA Analysis\n{qa_critique[:500]}..."
+            )
+
+    async def _orchestrate_pipeline(self, task: str) -> str:
+        """Internal helper for standard multi-agent pipeline."""
+        # This was referenced but not fully implemented in the previous snippet
+        return await self.run_workflow(task)
 
     @classmethod
     async def create_default(cls, provider_name: str | None = None) -> SupervisorAgent:

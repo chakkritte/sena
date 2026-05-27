@@ -358,16 +358,24 @@ class ReactAgent(BaseAgent):
                         yield f"\n\n[Carbon Emissions: {emissions:.6f} kg CO2]"
                     return
 
-                for call in tool_calls:
+                import asyncio
+                
+                async def execute_tool_call_stream(call: ToolCall) -> tuple[Message, Any, ToolCall]:
                     result = await ctx.tools.execute(call.name, call.arguments)
-                    ctx.messages.append(
-                        Message(
-                            role="tool",
-                            content=result.content,
-                            tool_call_id=call.id,
-                            name=call.name,
-                        )
+                    msg = Message(
+                        role="tool",
+                        content=result.content,
+                        tool_call_id=call.id,
+                        name=call.name,
                     )
+                    return msg, result, call
+
+                tool_results_with_meta = await asyncio.gather(
+                    *(execute_tool_call_stream(call) for call in tool_calls)
+                )
+                
+                for msg, result, call in tool_results_with_meta:
+                    ctx.messages.append(msg)
                     yield f"\n\n[{call.name}]\n{result.content}\n\n"
 
             yield "\n[Reached maximum iterations]\n"

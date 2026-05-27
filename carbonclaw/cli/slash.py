@@ -172,6 +172,11 @@ class SlashRegistry:
             _cmd_audit,
         )
         self.register(
+            "mask",
+            "Mask sensitive information in the current conversation context.",
+            _cmd_mask,
+        )
+        self.register(
             "research",
             "Perform deep web research using Map-Reduce pipeline.",
             _cmd_research,
@@ -201,11 +206,50 @@ class SlashRegistry:
             "Show aggregated carbon emissions for this project.",
             _cmd_carbon,
         )
+        self.register(
+            "swarm",
+            "Trigger a multi-agent swarm debate for the current task.",
+            _cmd_swarm,
+        )
 
 
 # ---------------------------------------------------------------------- #
 # Default handlers
 # ---------------------------------------------------------------------- #
+
+
+async def _cmd_swarm(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+    """Trigger a swarm debate."""
+    task = args.strip()
+    if not task:
+        # If no task provided, use the last user message
+        for msg in reversed(messages):
+            if msg.role == "user" and not msg.content.startswith("/"):
+                task = msg.content
+                break
+    
+    if not task:
+        return SlashResult(output="[red]Please provide a task or question for the swarm.[/red]")
+
+    from carbonclaw.agents.supervisor import SupervisorAgent
+    from carbonclaw.providers.registry import ProviderRegistry
+    from carbonclaw.config.settings import CarbonClawConfig
+    from carbonclaw.memory.sqlite import SQLiteMemory
+    
+    config = CarbonClawConfig()
+    provider = ProviderRegistry.create(config.default_provider, config)
+    memory = SQLiteMemory()
+    
+    supervisor = SupervisorAgent(provider, [], memory)
+    
+    from carbonclaw.cli.main import console
+    console.print(f"🐝 [bold yellow]Initiating Swarm Debate:[/bold yellow] {task}")
+    
+    try:
+        result = await supervisor.swarm_debate(task)
+        return SlashResult(output=result)
+    except Exception as e:
+        return SlashResult(output=f"[red]Swarm failed:[/red] {str(e)}")
 
 
 async def _cmd_carbon(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
@@ -373,29 +417,45 @@ async def _cmd_research(_messages: list[Message], args: str, _registry: SlashReg
     return SlashResult(output=None) # Already printed
 
 
+async def _cmd_mask(messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
+    """Mask sensitive information in history."""
+    from carbonclaw.utils.privacy import mask_secrets
+    new_messages = []
+    masked_count = 0
+    for m in messages:
+        if m.role == "system":
+            new_messages.append(m)
+            continue
+        original = m.content or ""
+        masked = mask_secrets(original)
+        if original != masked:
+            masked_count += 1
+            m.content = masked
+        new_messages.append(m)
+    
+    return SlashResult(
+        messages=new_messages,
+        output=f"[bold green]Privacy Mask applied.[/bold green] Masked content in {masked_count} messages."
+    )
+
+
 async def _cmd_audit(_messages: list[Message], _args: str, _registry: SlashRegistry) -> SlashResult:
     """Scan history for potential leaks (secrets, keys)."""
-    import re
-    
-    # Simple regex for potential secrets
-    patterns = {
-        "API Key": r"(?:key|api|token|secret|password)[\s:=]+['\"]?([a-zA-Z0-9_\-\.]{16,})['\"]?",
-        "Email": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
-    }
+    from carbonclaw.utils.privacy import scan_text
     
     findings = []
-    for msg in _messages:
+    for i, msg in enumerate(_messages):
         if not msg.content:
             continue
-        for name, pattern in patterns.items():
-            if re.search(pattern, msg.content, re.IGNORECASE):
-                findings.append(f"- [yellow]Potential {name} detected[/yellow] in {msg.role} message.")
+        results = scan_text(msg.content)
+        for res in results:
+            findings.append(f"- [yellow]Potential {res['type']} detected[/yellow] in {msg.role} message (pos {res['start']}).")
 
     if not findings:
         return SlashResult(output="[bold green]✅ Privacy Audit passed.[/bold green] No obvious leaks detected in current context.")
     
     output = "[bold red]⚠️ Privacy Audit Findings:[/bold red]\n" + "\n".join(findings)
-    output += "\n\n[dim]Recommendation: Use /compact or /clear if these are sensitive.[/dim]"
+    output += "\n\n[dim]Recommendation: Use /mask, /compact, or /clear if these are sensitive.[/dim]"
     return SlashResult(output=output)
 
 

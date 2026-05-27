@@ -20,7 +20,10 @@ curl -fsSL https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.
 ## 🌟 Key Features
 
 - **Multi-Agent Orchestration**: Automated plan -> code -> test -> review -> docs workflows.
-- **Self-Evolution**: Agents learn from interactions and autonomously improve their strategies.
+- **Swarm Debate Mode**: Multi-agent collaboration where specialized agents debate and iterate on solutions for higher quality.
+- **Hybrid Memory**: Fused keyword (SQLite) and semantic (ChromaDB) search for superior context recall.
+- **Parallel Tool Execution**: Async turn-level concurrency for faster execution of complex tasks.
+- **Strategic Evolution**: Agents learn from interactions and autonomously improve their routing strategies.
 - **Claude Code-Style Chat**: Interactive chat with multi-line input, draft preservation, and persistent chat renderer.
 - **Browser Automation**: Full web interaction and scraping via Playwright.
 - **Strictly Typed**: 100% Mypy compliance for enterprise reliability.

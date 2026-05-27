@@ -129,6 +129,36 @@ class SmartRouter:
         # Determine the target model for this task type from config
         task_model = self.config.routing_models.get(task_type.value)
 
+        # Apply Strategic Adjustments
+        strategy_override_provider = None
+        strategy_override_model = None
+        for adj in self.strategic_adjustments:
+            if adj.get("target_task_type") == task_type.value:
+                # Basic condition parser
+                cond = str(adj.get("condition", ""))
+                match = True
+                if "complexity >" in cond:
+                    try:
+                        thresh = float(cond.split(">")[1].strip())
+                        match = complexity > thresh
+                    except ValueError:
+                        pass
+                
+                if match:
+                    action = adj.get("action", "")
+                    if action == "prefer_cloud":
+                        strategy_override_provider = self.config.default_provider
+                        strategy_override_model = "gpt-4o"  # or other robust cloud model
+                    elif action.startswith("force_"):
+                        strategy_override_provider = action.replace("force_", "")
+                    break # Apply first matched strategy
+
+        if strategy_override_provider:
+            # Re-evaluate model if provider changed
+            if not strategy_override_model:
+                 strategy_override_model = self.config.default_model or "llama3.2"
+            return strategy_override_provider, strategy_override_model, task_type
+
         # 1. SUSTAINABILITY Strategy:
         if strategy == RoutingStrategy.SUSTAINABILITY:
             # If complexity is high, pick cloud to ensure quality
