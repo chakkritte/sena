@@ -8,15 +8,15 @@ CarbonClaw brings the principle of **autonomous development** to the command lin
 ## 💡 Core Philosophy
 The system's core philosophy is built on **Observability, Reliability, and Iteration**:
 1.  **Observability:** Every step is tracked via OpenTelemetry tracing, providing granular visibility into execution paths, decision-making, and token costs.
-2.  **Reliability:** Mandatory human-in-the-loop (HITL) approval gates are enforced for sensitive or high-impact operations.
-3.  **Iteration:** Agents are designed to self-evolve, learning from successful and failed workflows to improve future performance.
+2.  **Reliability:** Mandatory human-in-the-loop (HITL) approval gates are enforced for sensitive or high-impact operations, now featuring **Impact Analysis**.
+3.  **Iteration:** Agents are designed to self-evolve, learning from successful and failed workflows to improve future performance through **Strategic Evolution**.
 
 ## 🛠️ Tech Stack & Architecture
 The architecture is modular and adheres to strict engineering standards:
 
 *   **Languages:** Python (Primary), TypeScript/JavaScript (Frontend/Tools).
 *   **Frameworks:** FastAPI (Implied API structure), Playwright (Browser Automation), OpenTelemetry (Observability).
-*   **Database:** SQLite (Local persistence for memory/context).
+*   **Database:** SQLite + ChromaDB (**Hybrid Memory**).
 *   **Design Pattern:** Composition over Inheritance (Modular agent design).
 *   **Quality:** 100% Mypy compliance enforced across the project.
 
@@ -26,30 +26,31 @@ The repository is organized into several distinct, composable modules:
 
 ### 👤 `carbonclaw/agents/` (The Brains)
 This directory houses the specialized, callable AI agents, implementing the core decision-making logic.
-*   `base.py`: Defines the foundational `Agent` class and execution lifecycle.
+*   `base.py`: Defines the foundational `Agent` class with **Parallel Tool Execution** support.
+*   `supervisor.py`: Coordinates agents via event bus, featuring a new **Swarm Debate** workflow.
+*   `evolution.py`: Implements **Strategic Evolution** for autonomous router optimization.
 *   `planner.py`: Responsible for breaking down high-level goals into actionable, ordered steps.
 *   `coding.py`: Executes code generation, adhering to best practices and syntax rules.
 *   `qa.py`: Runs rigorous testing, including unit and integration tests.
 *   `review.py`: Performs code audits, checking for security flaws, style violations, and optimization opportunities.
 *   `docs.py`: Generates comprehensive documentation artifacts based on the codebase.
-*   `generalist.py`: A fallback or primary agent for unclassified tasks.
 
 ### 🌐 `carbonclaw/tools/` (The Hands)
 The Adapter layer that allows the AI to interact with the external environment. These tools are the system's sensory and motor functions.
 *   `file.py`: File system operations (read, write, search).
-*   `shell.py`: Executes system shell commands (sandboxed).
+*   `shell.py`: Executes system shell commands, featuring **Docker Sandbox Integration**.
 *   `git.py`: Full Git integration (status, diff, commit).
 *   `web_search.py`: Interfaces with external search APIs (e.g., Google, Bing).
-*   `browser.py`: Wrapper around Playwright for full browser automation and scraping.
+*   `browser.py`: Wrapper around Playwright for full browser automation, scraping, and **Visual/Vision** support.
 
 ### 🧠 `carbonclaw/context/` & `carbonclaw/memory/` (The Memory)
 These modules manage the state and long-term recall of the system.
 *   **Context:** Manages the current session state, history, and immediate variables.
-*   **Memory:** Provides persistent, long-term memory, allowing the system to retain knowledge across multiple sessions (e.g., user preferences, project history).
+*   **Memory:** Featuring **HybridMemory**, fusing SQLite keyword search with ChromaDB semantic search for superior recall.
 
 ### ⚙️ `carbonclaw/providers/` & `carbonclaw/core/router.py` (The Connections)
 This is the critical abstraction layer. It allows the core logic to remain agnostic of the underlying LLM provider.
-*   **Smart Router:** Dynamically selects the best model/provider based on **Task Type** (Coding, Research, Slides) and **Complexity**. It prioritizes local models (Ollama) for simple tasks.
+*   **Smart Router:** Dynamically selects the best model/provider based on **Task Type**, **Complexity**, and **Learned Strategic Adjustments**.
 *   **Task Classifier:** Keyword-based classification in `routing/classifier.py` for zero-latency categorization.
 
 ### 🔬 `carbonclaw/agents/research.py` (Advanced Research)
@@ -59,11 +60,9 @@ Implements a state-of-the-art **Map-Reduce** research pipeline:
 3.  **Map**: Parallel summarization of each source using fast local models.
 4.  **Reduce**: Synthesis of all summaries into a cited, structured report using high-capacity models.
 
-### 🛠️ `carbonclaw/tools/nodejs.py` (Extended Capabilities)
-Enables JavaScript/Node.js execution for specialized tasks like PowerPoint generation via `PptxGenJS`.
-
 ### 🖥️ `carbonclaw/cli/` (The Interface)
 The primary user-facing entry points. These scripts wrap the complex agent interactions into simple, actionable CLI commands (e.g., `carbonclaw run`, `carbonclaw chat`).
+*   `status.py`: New rich TUI dashboard for sustainability and system status tracking.
 
 ## 🚀 Getting Started (Quick Start Guide)
 
@@ -94,6 +93,7 @@ carbonclaw models
 | `carbonclaw chat` | **Interactive Chat** | Starts a persistent, contextual conversation with the AI. |
 | `carbonclaw run "..."` | **One-Shot Task** | Executes a specific, self-contained task (e.g., "Refactor X file"). |
 | `carbonclaw plan` | **Goal Planning** | Takes a high-level goal and outputs a multi-step, actionable plan for human review. |
+| `carbonclaw status` | **System Status** | View the sustainability and system status dashboard (Live TUI). |
 | `carbonclaw doctor` | **System Health** | Runs diagnostics on dependencies, configuration, and local environment integrity. |
 
 ## 🔮 Roadmap & Future Work
