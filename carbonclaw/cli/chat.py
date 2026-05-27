@@ -15,7 +15,6 @@ import typer
 
 from carbonclaw.cli.main import app, console
 from carbonclaw.cli.slash import SlashRegistry
-from carbonclaw.config.settings import CarbonClawConfig
 from carbonclaw.context.manager import ContextManager
 from carbonclaw.core.models import CompletionRequest, Message, ToolCall, StreamChunk
 from carbonclaw.memory.sqlite import SQLiteMemory
@@ -615,6 +614,12 @@ async def _chat_loop(
                     latency, 
                     success
                 )
+                
+                if success and messages and messages[-1].role == "assistant" and messages[-1].content:
+                    from carbonclaw.core.benchmark import Benchmarker
+                    benchmarker = Benchmarker(config)
+                    # Run shadow trial in background
+                    asyncio.create_task(benchmarker.run_shadow_trial(user_input, messages[-1].content))
 
     finally:
         # Disconnect MCP clients safely
@@ -639,11 +644,6 @@ async def _chat_loop(
 def chat(
     provider: str | None = typer.Option(None, "--provider", "-p", help="LLM provider to use."),
     model: str | None = typer.Option(None, "--model", "-m", help="Model ID to use."),
-    no_streaming: bool = typer.Option(False, "--no-streaming", help="Disable real-time streaming."),
-) -> None:
-    """Start an interactive chat session with CarbonClaw."""
-    asyncio.run(_chat_loop(provider, model, not no_streaming))
-del: str | None = typer.Option(None, "--model", "-m", help="Model ID to use."),
     no_streaming: bool = typer.Option(False, "--no-streaming", help="Disable real-time streaming."),
 ) -> None:
     """Start an interactive chat session with CarbonClaw."""
