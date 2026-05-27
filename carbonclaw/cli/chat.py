@@ -9,7 +9,7 @@ import os
 import readline
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import typer
 
@@ -79,21 +79,33 @@ class DraftManager:
             self._draft_path.unlink()
 
 
-def _read_input(console: Any, draft_manager: DraftManager) -> str:
+def _read_input(console: Any, draft_manager: DraftManager, completer: Callable[[str, int], str | None] | None = None) -> str:
     r"""Read user input with multi-line support.
 
     Supports:
+    - Autocompletion (via readline)
     - Backslash continuation (line ending with \)
     - Triple-backtick code block auto-detection
     - Empty line to send multi-line input
     - Draft restoration from previous interruption
     """
+    # Configure autocompletion if provided
+    if completer:
+        readline.set_completer(completer)
+        readline.parse_and_bind("tab: complete")
+    else:
+        readline.set_completer(None)
+
     # Restore previous draft if any
     draft = draft_manager.load()
     if draft:
         console.print("[dim]Restored draft (edit or press Enter to send):[/dim]")
-        # Pre-fill readline buffer with the draft
-        readline.set_startup_hook(lambda: readline.insert_text(draft))
+        
+        # Pre-fill readline buffer with the draft. We combine this with the 
+        # startup hook to ensure the draft is loaded right before input.
+        def startup_hook() -> None:
+            readline.insert_text(draft)
+        readline.set_startup_hook(startup_hook)
     else:
         readline.set_startup_hook(None)
 
@@ -112,6 +124,9 @@ def _read_input(console: Any, draft_manager: DraftManager) -> str:
     if not stripped or stripped.startswith("/") or stripped.startswith("!"):
         draft_manager.clear()
         return first_line
+
+    # Disable completion for multi-line continuation to prevent annoying popups while typing code
+    readline.set_completer(None)
 
     lines = [first_line]
     in_code_block = stripped.startswith("```")
@@ -506,9 +521,25 @@ async def _chat_loop(
                 messages=messages
             )
             console.print(status_bar)
+            
+            # Build the completer dynamically based on registered slash commands
+            def slash_completer(text: str, state: int) -> str | None:
+                if text.startswith("/"):
+                    # Extract just the command part without the slash for matching
+                    query = text[1:]
+                    matches = [
+                        "/" + cmd 
+                        for cmd in slash._commands.keys() 
+                        if cmd.startswith(query)
+                    ]
+                    # Append a trailing space to complete the command
+                    matches = [m + " " for m in matches]
+                    if state < len(matches):
+                        return matches[state]
+                return None
 
             try:
-                user_input = _read_input(console, draft_manager)
+                user_input = _read_input(console, draft_manager, completer=slash_completer)
             except EOFError:
                 break
             except KeyboardInterrupt:
