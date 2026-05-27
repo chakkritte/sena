@@ -19,6 +19,10 @@ curl -fsSL https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.
 
 ## 🌟 Key Features
 
+- **Self-Healing CI**: Autonomous daemon mode (`/heal`) that watches for test failures and automatically creates and verifies fixes.
+- **Knowledge Graph Memory**: AST-based code parsing for deep structural awareness and blast-radius analysis.
+- **Model Distillation**: Background benchmarking pipeline ("shadow trials") that autonomously discovers the most carbon-efficient models for your specific tasks.
+- **Visual Architecture**: Vision model integration (`VisionTool`) for architecture diagram verification and UI mockup analysis.
 - **Multi-Agent Orchestration**: Automated plan -> code -> test -> review -> docs workflows.
 - **Swarm Debate Mode**: Multi-agent collaboration where specialized agents debate and iterate on solutions for higher quality.
 - **Hybrid Memory**: Fused keyword (SQLite) and semantic (ChromaDB) search for superior context recall.

@@ -211,11 +211,46 @@ class SlashRegistry:
             "Trigger a multi-agent swarm debate for the current task.",
             _cmd_swarm,
         )
+        self.register(
+            "heal",
+            "Run autonomous self-healing CI loop for failing tests.",
+            _cmd_heal,
+        )
 
 
 # ---------------------------------------------------------------------- #
 # Default handlers
 # ---------------------------------------------------------------------- #
+
+
+async def _cmd_heal(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+    """Trigger the HealerAgent."""
+    test_cmd = args.strip() or "uv run pytest"
+    
+    from carbonclaw.agents.supervisor import SupervisorAgent
+    from carbonclaw.agents.healer import HealerAgent
+    from carbonclaw.providers.registry import ProviderRegistry
+    from carbonclaw.config.settings import CarbonClawConfig
+    from carbonclaw.memory.sqlite import SQLiteMemory
+    
+    config = CarbonClawConfig()
+    provider = ProviderRegistry.create(config.default_provider, config)
+    memory = SQLiteMemory()
+    
+    supervisor = SupervisorAgent(provider, [], memory)
+    healer = HealerAgent(supervisor, test_command=test_cmd)
+    
+    from carbonclaw.cli.main import console
+    console.print(f"🩺 [bold yellow]Starting Self-Healing CI daemon (Cmd: {test_cmd})...[/bold yellow]")
+    
+    try:
+        success = await healer.heal_loop()
+        if success:
+            return SlashResult(output="[bold green]✅ Healing successful or no errors found.[/bold green]")
+        else:
+            return SlashResult(output="[bold red]❌ Healing failed after max attempts.[/bold red]")
+    except Exception as e:
+        return SlashResult(output=f"[red]Healer error:[/red] {str(e)}")
 
 
 async def _cmd_swarm(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:

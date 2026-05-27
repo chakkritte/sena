@@ -29,6 +29,7 @@ This directory houses the specialized, callable AI agents, implementing the core
 *   `base.py`: Defines the foundational `Agent` class with **Parallel Tool Execution** support.
 *   `supervisor.py`: Coordinates agents via event bus, featuring a new **Swarm Debate** workflow.
 *   `evolution.py`: Implements **Strategic Evolution** for autonomous router optimization.
+*   `healer.py`: **Self-Healing CI** daemon that automatically fixes failing test suites.
 *   `planner.py`: Responsible for breaking down high-level goals into actionable, ordered steps.
 *   `coding.py`: Executes code generation, adhering to best practices and syntax rules.
 *   `qa.py`: Runs rigorous testing, including unit and integration tests.
@@ -39,6 +40,7 @@ This directory houses the specialized, callable AI agents, implementing the core
 The Adapter layer that allows the AI to interact with the external environment. These tools are the system's sensory and motor functions.
 *   `file.py`: File system operations (read, write, search).
 *   `shell.py`: Executes system shell commands, featuring **Docker Sandbox Integration**.
+*   `vision.py`: **Visual Architecture Verification**, enabling agents to parse diagrams and mockups.
 *   `git.py`: Full Git integration (status, diff, commit).
 *   `web_search.py`: Interfaces with external search APIs (e.g., Google, Bing).
 *   `browser.py`: Wrapper around Playwright for full browser automation, scraping, and **Visual/Vision** support.
@@ -46,11 +48,12 @@ The Adapter layer that allows the AI to interact with the external environment. 
 ### 🧠 `carbonclaw/context/` & `carbonclaw/memory/` (The Memory)
 These modules manage the state and long-term recall of the system.
 *   **Context:** Manages the current session state, history, and immediate variables.
-*   **Memory:** Featuring **HybridMemory**, fusing SQLite keyword search with ChromaDB semantic search for superior recall.
+*   **Memory:** Featuring **HybridMemory** (SQLite + ChromaDB) and **KnowledgeGraphMemory** (AST-based parsing for deep repository awareness).
 
 ### ⚙️ `carbonclaw/providers/` & `carbonclaw/core/router.py` (The Connections)
 This is the critical abstraction layer. It allows the core logic to remain agnostic of the underlying LLM provider.
 *   **Smart Router:** Dynamically selects the best model/provider based on **Task Type**, **Complexity**, and **Learned Strategic Adjustments**.
+*   **Benchmarker:** Runs **Model Distillation (Shadow Trials)** in the background to autonomously find the most carbon-efficient models.
 *   **Task Classifier:** Keyword-based classification in `routing/classifier.py` for zero-latency categorization.
 
 ### 🔬 `carbonclaw/agents/research.py` (Advanced Research)

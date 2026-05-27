@@ -417,6 +417,9 @@ async def _chat_loop(
     tools.register(FileSearchTool())
     tools.register(WebSearchTool())
 
+    from carbonclaw.tools.vision import VisionTool
+    tools.register(VisionTool())
+
     # Advanced Tools
     from carbonclaw.tools.agent import InvokeAgentTool
     from carbonclaw.tools.plan import EnterPlanModeTool
@@ -636,6 +639,11 @@ async def _chat_loop(
 def chat(
     provider: str | None = typer.Option(None, "--provider", "-p", help="LLM provider to use."),
     model: str | None = typer.Option(None, "--model", "-m", help="Model ID to use."),
+    no_streaming: bool = typer.Option(False, "--no-streaming", help="Disable real-time streaming."),
+) -> None:
+    """Start an interactive chat session with CarbonClaw."""
+    asyncio.run(_chat_loop(provider, model, not no_streaming))
+del: str | None = typer.Option(None, "--model", "-m", help="Model ID to use."),
     no_streaming: bool = typer.Option(False, "--no-streaming", help="Disable real-time streaming."),
 ) -> None:
     """Start an interactive chat session with CarbonClaw."""
