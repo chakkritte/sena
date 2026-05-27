@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 
+import typer
 from rich.console import Console, Group
 from rich.layout import Layout
 from rich.live import Live
@@ -13,7 +14,7 @@ from rich.progress import BarColumn, Progress, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from carbonclaw.cli.main import app
+from carbonclaw.cli.main import app, console
 from carbonclaw.config.settings import CarbonClawConfig
 from carbonclaw.telemetry.carbon import CarbonStore
 from carbonclaw.providers.registry import ProviderRegistry
@@ -121,7 +122,3 @@ def status(
                 live_display.update(make_dashboard(config, store))
         except KeyboardInterrupt:
             pass
-
-
-import typer
-from carbonclaw.cli.main import console
