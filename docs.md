@@ -17,6 +17,7 @@ Detailed guide for architecture, advanced usage, and configuration.
     - [Carbon Budgeting & Limits](#carbon-budgeting--limits)
     - [VS Code / IDE Extension Integration](#vs-code--ide-extension-integration)
     - [ESG & Sustainability Dashboard](#esg--sustainability-dashboard)
+    - [Automated Benchmark Dashboard](#automated-benchmark-dashboard)
     - [GitHub Webhook Healer CI](#github-webhook-healer-ci)
     - [Agent Template Marketplace](#agent-template-marketplace)
     - [Prompt Efficiency Optimizer](#prompt-efficiency-optimizer)
@@ -28,6 +29,7 @@ Detailed guide for architecture, advanced usage, and configuration.
     - [CI/CD Healer Daemon](#cicd-healer-daemon)
     - [Playwright Visual Regression Testing](#playwright-visual-regression-testing)
     - [Swarm Debate Console TUI](#swarm-debate-console-tui)
+    - [Local Model Fine-Tuning Export](#local-model-fine-tuning-export)
 
 ---
 
@@ -161,7 +163,56 @@ Provides building blocks for multi-node deployments:
 
 ## Plugin System
 
-Create plugins by implementing `CarbonClawPlugin` and registering via `[project.entry-points."carbonclaw.plugins"]`.
+CarbonClaw features a robust, stabilized dynamic plugin ecosystem enabling users to publish, share, and seamlessly load custom tools, providers, commands, and event handlers.
+
+### Creating a Plugin
+
+To define a plugin, inherit from `CarbonClawPlugin` (from `carbonclaw.plugins.base`) and implement the registration hooks:
+
+```python
+from carbonclaw.plugins.base import CarbonClawPlugin
+from carbonclaw.core.base import BaseTool, BaseProvider
+from typing import Any, Callable
+
+class MyCustomPlugin(CarbonClawPlugin):
+    name = "carbonclaw-tool-aws"
+    version = "0.1.0"
+
+    def activate(self) -> None:
+        """Executed during startup when the plugin is loaded."""
+        pass
+
+    def deactivate(self) -> None:
+        """Executed when the plugin is unloaded."""
+        pass
+
+    def register_tools(self) -> list[BaseTool]:
+        """Return custom tools to inject into the global ToolRegistry."""
+        return [MyAwsTool()]
+
+    def register_providers(self) -> dict[str, type[BaseProvider]]:
+        """Return custom LLM providers to inject into the ProviderRegistry."""
+        return {"aws-bedrock": BedrockProvider}
+
+    def register_commands(self) -> dict[str, Callable[..., Any]]:
+        """Return CLI commands to dynamically attach to the Typer app."""
+        return {"aws-deploy": deploy_command}
+
+    def register_hooks(self) -> dict[str, Callable[..., Any]]:
+        """Return event hooks to dynamically subscribe to the EventBus."""
+        return {"agent.complete": log_completion_hook}
+```
+
+### Registration via Entry Points
+
+Register your plugin package under the `carbonclaw.plugins` entry point group in `pyproject.toml`:
+
+```toml
+[project.entry-points."carbonclaw.plugins"]
+aws = "carbonclaw_tool_aws.plugin:MyCustomPlugin"
+```
+
+Once installed, CarbonClaw automatically discovers the plugin and integrates its contributions into the runtime without requiring any changes to the core codebase.
 
 ---
 
@@ -202,12 +253,20 @@ Connects editors directly to the sustainability intelligence backend to supply v
 ### ESG & Sustainability Dashboard
 
 A modern, highly visual FastAPI-powered dashboard that aggregates organization-wide or developer telemetry.
-- **Dashboard UI**: Rendered at `/esg/dashboard`, styled using Outline typography and a premium dark-mode theme featuring:
+- **Dashboard UI**: Rendered at `/esg/dashboard`, styled using Outfit typography and a premium dark-mode theme featuring:
   - Total aggregated carbon emissions tracking.
   - Forestry offsets and partner information (calculating exact equivalent trees planted and Wh clean energy restored).
   - A real-time **Model Efficiency Leaderboard** displaying the Carbon-to-Utility Ratio of open-source and commercial models.
   - Dynamic breakdowns of emissions grouped by individual project workspaces.
 - **API Endpoint**: `/api/esg/stats` exposes raw structured data containing emission summaries, grid coefficients, offsets, and leaderboard stats.
+
+### Automated Benchmark Dashboard
+
+An advanced, real-telemetry-driven dashboard comparing the sustainability of different open-source and commercial models based on CarbonClaw's anonymous token and energy telemetry records.
+- **Benchmark UI**: Rendered at `/esg/benchmark`, structured as a beautiful, interactive page with glassmorphism stats cards, visual CSS horizontal bar graphs, and dynamic ranking details.
+- **Carbon-to-Utility Score**: Displays the dynamic efficiency ratio of models:
+  $$\text{Efficiency Score} = \frac{\text{Model Utility Score (\%)}}{\text{CO}_2\text{ Emissions per 1000 Tokens (grams)}}$$
+- **API Endpoint**: `/api/esg/benchmark` calculates the leaderboard in real-time by reading usage records from `TelemetryStore` (`telemetry.jsonl`) and applying dynamic calculations for active models while maintaining baselines for comparison.
 
 ### GitHub Webhook Healer CI
 
@@ -292,3 +351,15 @@ An interactive debate interface that elevates supervisor capabilities via collab
   - `(a)pprove`: Accepts the current consensus.
   - `(i)nterject`: Inputs custom human direction into the agent conversation log.
   - `(r)eject`: Rejects and instructs the swarm to restart the iteration.
+
+### Local Model Fine-Tuning Export
+
+A powerful pipeline allowing you to package your successful agent session runs, thoughts, tool calls, and self-healing fixes directly into a format ready for LoRA fine-tuning.
+
+- **Usage**: `carbonclaw export-tuning --output lora_dataset.jsonl --format sharegpt`
+- **Output Formats**:
+  - `sharegpt`: Multi-turn conversational format pairing system prompt, human request, GPT agent thoughts/actions, and tool responses sequential lists.
+  - `chatml`: Industry standard messages list dictionary format.
+  - `alpaca`: Instruction, input, and outputs text aggregations.
+- **Filtering Options**: Filter session exports by minimum execution steps using `--min-steps <count>`.
+

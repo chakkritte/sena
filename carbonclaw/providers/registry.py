@@ -70,3 +70,14 @@ class ProviderRegistry:
     @classmethod
     def register(cls, name: str, provider_cls: type[BaseProvider]) -> None:
         _PROVIDER_MAP[name.lower()] = provider_cls
+
+
+# Discover and register providers from dynamic plugins
+try:
+    from carbonclaw.plugins.base import PluginRegistry
+    _registry = PluginRegistry()
+    _registry.discover()
+    for _name, _prov_cls in _registry.providers().items():
+        ProviderRegistry.register(_name, _prov_cls)
+except Exception:
+    pass

@@ -169,7 +169,18 @@ from carbonclaw.cli import (  # noqa: E402, F401
     telemetry_cmd,
     template_cmd,
     tui_cmd,
+    tuning_cmd,
     update,
     web,
     worker,
 )
+
+# Discover and register commands from dynamic plugins
+try:
+    from carbonclaw.plugins.base import PluginRegistry
+    _registry = PluginRegistry()
+    _registry.discover()
+    for _name, _cmd_func in _registry.commands().items():
+        app.command(name=_name)(_cmd_func)
+except Exception:
+    pass

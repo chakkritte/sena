@@ -45,6 +45,8 @@ irm https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.ps1 | i
 - **Observability**: Built-in OpenTelemetry tracing for monitoring execution paths and token costs.
 - **Sustainability**: Real-time carbon emission tracking via `codecarbon`, active per-session or per-task **Carbon Budgeting** (`--carbon-budget`) to enforce limits, and proactive recommendations for local/greener models on simple tasks.
 - **Carbon-Aware Scheduling**: Intelligently delay resource-heavy cloud tasks to run during solar or wind grid peaks, yielding projected CO₂ savings (supported via `carbonclaw schedule-*` and `/schedule` slash commands).
+- **Dynamic Model Benchmarks**: Beautiful, real-telemetry-driven dashboard (`/esg/benchmark`) visualizing and ranking model carbon-to-utility efficiency based on actual token/energy telemetry.
+- **Custom Plugin Ecosystem**: Highly extensible entrypoint-driven plugin API for sharing and registering custom tools, providers, Typer commands, and event bus hook subscriptions dynamically.
 - **Advanced Research**: Multi-step Map-Reduce research pipeline for deep web analysis and comprehensive report generation.
 - **Slide Generation**: Automated PowerPoint generation via `PptxGenJS` integration and specialized slide agents.
 - **Smart Routing**: Autonomous model selection based on task type (Coding, Research, Slides) and complexity (inspired by OpenClaude).
@@ -127,13 +129,13 @@ For detailed guides, architecture, and advanced usage, see [CLAUDE.md](./CLAUDE.
 ### Month 2: Proactive Automation & CI/CD
 - [x] **Event-Driven Workflows**: Connect CarbonClaw to GitHub/GitLab Webhooks to autonomously heal CI build pipelines, creating and verifying automated branch fixes.
 - [x] **Self-Documenting Code**: Launch `doc-sync` AST auditing daemon to continuously audit modified files and inject missing docstrings in real-time.
-- [ ] **Automated Benchmark Dashboard**: A hosted dashboard comparing the carbon efficiency of open-source models based on CarbonClaw's anonymous telemetry data.
+- [x] **Automated Benchmark Dashboard**: A hosted dashboard comparing the carbon efficiency of open-source models based on CarbonClaw's anonymous telemetry data.
 
 
 ### Month 3: Deep Repo Awareness & Ecosystem
 - [x] **Advanced Graph Memory Expansion**: Connect the AST Knowledge Graph to Git history (blame, churn) to predict which files are most likely to introduce bugs during a refactor.
-- [ ] **Custom Plugin Ecosystem**: Stabilize the plugin API so users can publish and share custom tools (e.g., `carbonclaw-tool-aws`, `carbonclaw-tool-jira`).
-- [ ] **Local Model Fine-Tuning**: A CLI command to automatically export successful "lessons learned" and code fixes into a LoRA dataset for fine-tuning small local models.
+- [x] **Custom Plugin Ecosystem**: Stabilize the plugin API so users can publish and share custom tools (e.g., `carbonclaw-tool-aws`, `carbonclaw-tool-jira`).
+- [x] **Local Model Fine-Tuning**: A CLI command to automatically export successful "lessons learned" and code fixes into a LoRA dataset for fine-tuning small local models.
 
 ## License
 

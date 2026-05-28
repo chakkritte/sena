@@ -118,3 +118,44 @@ def test_github_webhook_trigger_healer(client: TestClient) -> None:
         data = response.json()
         assert data["triggered"] is True
         assert "Failing workflow run detected" in data["message"]
+
+
+def test_esg_benchmark_ui(client: TestClient) -> None:
+    response = client.get("/esg/benchmark")
+    assert response.status_code == 200
+    assert "CarbonClaw" in response.text
+    assert "Sustainability Benchmark" in response.text
+
+
+def test_api_esg_benchmark(client: TestClient, tmp_path) -> None:
+    # Patch TelemetryStore to use a test file
+    from carbonclaw.telemetry.store import TelemetryStore, UsageRecord
+    import unittest.mock
+    
+    telemetry_file = tmp_path / "telemetry_test.jsonl"
+    store = TelemetryStore(path=telemetry_file)
+    store.record(UsageRecord(provider="openai", model="gpt-4o-mini", prompt_tokens=100, completion_tokens=50))
+    store.record(UsageRecord(provider="ollama", model="llama3.2", prompt_tokens=200, completion_tokens=100))
+
+    original_init = TelemetryStore.__init__
+    def mock_store_init(self, path=None):
+        original_init(self, path=telemetry_file)
+
+    with unittest.mock.patch.object(TelemetryStore, "__init__", mock_store_init):
+        response = client.get("/api/esg/benchmark")
+        assert response.status_code == 200
+        data = response.json()
+        assert "leaderboard" in data
+        assert "total_telemetry_requests" in data
+        assert data["total_telemetry_requests"] == 2
+        assert data["total_telemetry_tokens"] == 450
+        
+        # Check that gpt-4o-mini and llama3.2 are marked active
+        leaderboard = data["leaderboard"]
+        mini_item = next(item for item in leaderboard if "gpt-4o-mini" in item["model"])
+        llama_item = next(item for item in leaderboard if "llama3.2" in item["model"])
+        
+        assert mini_item["is_active"] is True
+        assert mini_item["total_tokens"] == 150
+        assert llama_item["is_active"] is True
+        assert llama_item["total_tokens"] == 300

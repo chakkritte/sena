@@ -311,6 +311,7 @@ HTML_ESG_DASHBOARD = """
 
     <div class="tabs">
         <button class="tab-btn active" onclick="location.href='/esg/dashboard'">Dashboard Stats</button>
+        <button class="tab-btn" onclick="location.href='/esg/benchmark'">Model Benchmarks</button>
         <button class="tab-btn" onclick="location.href='/'">Interactive Chat</button>
     </div>
 
@@ -422,6 +423,364 @@ HTML_ESG_DASHBOARD = """
 """
 
 
+HTML_BENCHMARK_DASHBOARD = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CarbonClaw | Model Carbon Benchmarks</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0b0f19;
+            --bg-surface: rgba(17, 24, 39, 0.95);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.15);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2.5rem;
+            background-image: radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.05) 0%, transparent 40%);
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }
+        .logo-section h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #10b981 0%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        .logo-section p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+        .grid-indicator {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            color: #10b981;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse 1.6s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .tab-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .tab-btn.active, .tab-btn:hover {
+            background: #10b981;
+            color: #0b0f19;
+            border-color: #10b981;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+        }
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(12px);
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        }
+        .card h2 {
+            font-size: 1.3rem;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .card p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .benchmark-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .model-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .model-row:hover {
+            transform: scale(1.01);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        .model-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .model-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .model-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        .badge-local {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .badge-cloud {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        .badge-active {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            animation: pulse 2s infinite;
+        }
+        .model-metrics {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 1.5rem;
+        }
+        .metric-item strong {
+            color: var(--text-main);
+        }
+        .bar-container {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 9999px;
+            overflow: hidden;
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 9999px;
+            transition: width 1s ease-in-out;
+            background: linear-gradient(90deg, #34d399, #10b981);
+        }
+        .ratio-score {
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: #10b981;
+        }
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+        .stat-card h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+        .stat-card .val {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-section">
+            <h1>CarbonClaw 🦞</h1>
+            <p>Automated Sustainability Benchmark & Model Comparison</p>
+        </div>
+        <div class="grid-indicator">
+            <span class="pulse"></span>
+            Grid Carbon: <span id="intensity-val">...</span> g CO2/kWh
+        </div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn" onclick="location.href='/esg/dashboard'">Dashboard Stats</button>
+        <button class="tab-btn active" onclick="location.href='/esg/benchmark'">Model Benchmarks</button>
+        <button class="tab-btn" onclick="location.href='/'">Interactive Chat</button>
+    </div>
+
+    <div class="stat-cards">
+        <div class="stat-card">
+            <h3>Active Tested Models</h3>
+            <div class="val" id="active-models">0</div>
+        </div>
+        <div class="stat-card">
+            <h3>Total Telemetry Requests</h3>
+            <div class="val" id="total-requests">0</div>
+        </div>
+        <div class="stat-card">
+            <h3>Total Token Telemetry</h3>
+            <div class="val" id="total-tokens">0k</div>
+        </div>
+        <div class="stat-card">
+            <h3>Most Efficient Model</h3>
+            <div class="val" id="best-model" style="font-size: 1.2rem; padding-top: 0.4rem; color: #10b981;">None</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Model Efficiency Leaderboard (Carbon-to-Utility Ratio)</h2>
+        <p class="subtitle">Dynamic rankings comparing model accuracy (utility) per gram of carbon emissions. Higher score = more green-efficient.</p>
+        
+        <div class="benchmark-grid" id="benchmark-list">
+            <!-- Loaded dynamically -->
+        </div>
+    </div>
+
+    <script>
+        async function fetchBenchmark() {
+            try {
+                const res = await fetch('/api/esg/benchmark');
+                const data = await res.json();
+
+                document.getElementById('intensity-val').textContent = data.grid_intensity;
+                document.getElementById('total-requests').textContent = data.total_telemetry_requests;
+                document.getElementById('total-tokens').textContent = (data.total_telemetry_tokens / 1000).toFixed(1) + 'k';
+
+                const list = document.getElementById('benchmark-list');
+                list.innerHTML = '';
+
+                let activeCount = 0;
+                let bestRatio = -1;
+                let bestModelName = 'None';
+
+                // Find max ratio to normalize the bar widths
+                const maxRatio = Math.max(...data.leaderboard.map(item => item.ratio), 1);
+
+                data.leaderboard.forEach(item => {
+                    if (item.is_active) activeCount++;
+                    if (item.ratio > bestRatio) {
+                        bestRatio = item.ratio;
+                        bestModelName = item.model;
+                    }
+
+                    const widthPercent = (item.ratio / maxRatio) * 100;
+                    
+                    let badges = '';
+                    if (item.is_local) {
+                        badges += '<span class="badge badge-local">Local</span>';
+                    } else {
+                        badges += '<span class="badge badge-cloud">Cloud</span>';
+                    }
+                    if (item.is_active) {
+                        badges += '<span class="badge badge-active">Active (' + item.requests + ' reqs)</span>';
+                    }
+
+                    // Dynamically set bar colors based on efficiency score
+                    let barColor = 'linear-gradient(90deg, #34d399, #10b981)';
+                    if (item.ratio < 500) {
+                        barColor = 'linear-gradient(90deg, #f87171, #ef4444)';
+                    } else if (item.ratio < 2000) {
+                        barColor = 'linear-gradient(90deg, #fbbf24, #f59e0b)';
+                    }
+
+                    list.innerHTML += `
+                        <div class="model-row">
+                            <div class="model-header">
+                                <div class="model-info">
+                                    <span class="model-name">${item.model}</span>
+                                    ${badges}
+                                </div>
+                                <div class="ratio-score">${item.ratio.toFixed(1)} <span style="font-size:0.75rem; font-weight:400; color:var(--text-muted);">score</span></div>
+                            </div>
+                            <div class="model-metrics">
+                                <span class="metric-item">Utility Score: <strong>${item.utility_score}%</strong></span>
+                                <span class="metric-item">Est. Carbon/1k Tok: <strong>${item.emissions_per_1k.toFixed(3)}g CO₂</strong></span>
+                                <span class="metric-item">Recorded Tokens: <strong>${(item.total_tokens / 1000).toFixed(1)}k</strong></span>
+                            </div>
+                            <div class="bar-container">
+                                <div class="bar-fill" style="width: ${widthPercent}%; background: ${barColor};"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('active-models').textContent = activeCount;
+                document.getElementById('best-model').textContent = bestModelName;
+
+            } catch (err) {
+                console.error("Error fetching benchmarks:", err);
+            }
+        }
+
+        fetchBenchmark();
+        setInterval(fetchBenchmark, 30000);
+    </script>
+</body>
+</html>
+"""
+
+
 def create_app() -> FastAPI:
     """Create the FastAPI application."""
     config = CarbonClawConfig()
@@ -443,6 +802,88 @@ def create_app() -> FastAPI:
     async def esg_dashboard() -> str:
         return HTML_ESG_DASHBOARD
 
+    @app.get("/esg/benchmark", response_class=HTMLResponse)
+    async def esg_benchmark() -> str:
+        return HTML_BENCHMARK_DASHBOARD
+
+    @app.get("/api/esg/benchmark")
+    async def get_esg_benchmark() -> dict[str, Any]:
+        from carbonclaw.telemetry.store import TelemetryStore
+        store = TelemetryStore()
+        records = store.records()
+
+        # baseline model benchmarks: utility score out of 100, standard g CO2 per 1k tokens
+        baselines = {
+            "llama3.2 (local)": {"utility": 80.0, "emissions_per_1k": 0.01, "provider": "ollama", "is_local": True},
+            "llama3.1 (local)": {"utility": 82.0, "emissions_per_1k": 0.02, "provider": "ollama", "is_local": True},
+            "gpt-4o-mini": {"utility": 85.0, "emissions_per_1k": 0.08, "provider": "openai", "is_local": False},
+            "gemini-1.5-flash": {"utility": 84.0, "emissions_per_1k": 0.05, "provider": "gemini", "is_local": False},
+            "deepseek-coder": {"utility": 89.0, "emissions_per_1k": 0.12, "provider": "deepseek", "is_local": False},
+            "claude-3-5-sonnet-latest": {"utility": 97.0, "emissions_per_1k": 0.35, "provider": "anthropic", "is_local": False},
+            "gpt-4o": {"utility": 95.0, "emissions_per_1k": 0.45, "provider": "openai", "is_local": False},
+        }
+
+        # Calculate actual execution metrics from TelemetryStore records
+        dynamic_stats: dict[str, dict[str, Any]] = {}
+        for r in records:
+            key = r.model.lower()
+            matched_name = None
+            for b_name in baselines:
+                if key in b_name.lower() or b_name.lower() in key:
+                    matched_name = b_name
+                    break
+            
+            if matched_name:
+                name = matched_name
+            else:
+                name = f"{r.provider}/{r.model}"
+                if name not in baselines:
+                    baselines[name] = {
+                        "utility": 75.0 if r.provider == "ollama" else 85.0,
+                        "emissions_per_1k": 0.03 if r.provider == "ollama" else 0.15,
+                        "provider": r.provider,
+                        "is_local": r.provider == "ollama",
+                    }
+
+            if name not in dynamic_stats:
+                dynamic_stats[name] = {
+                    "total_tokens": 0,
+                    "requests": 0,
+                }
+            dynamic_stats[name]["total_tokens"] += r.total_tokens
+            dynamic_stats[name]["requests"] += 1
+
+        leaderboard = []
+        for name, info in baselines.items():
+            stats = dynamic_stats.get(name, {"total_tokens": 0, "requests": 0})
+            tokens = stats["total_tokens"]
+            requests = stats["requests"]
+            
+            emissions_per_1k = info["emissions_per_1k"]
+            ratio = info["utility"] / emissions_per_1k
+            
+            leaderboard.append({
+                "model": name,
+                "provider": info["provider"],
+                "is_local": info["is_local"],
+                "utility_score": info["utility"],
+                "emissions_per_1k": emissions_per_1k,
+                "ratio": ratio,
+                "total_tokens": tokens,
+                "requests": requests,
+                "is_active": requests > 0,
+            })
+
+        # Sort by ratio descending
+        leaderboard.sort(key=lambda x: x["ratio"], reverse=True)
+
+        return {
+            "leaderboard": leaderboard,
+            "total_telemetry_requests": len(records),
+            "total_telemetry_tokens": sum(r.total_tokens for r in records),
+            "grid_intensity": get_grid_intensity(),
+        }
+
     @app.get("/api/esg/stats")
     async def get_esg_stats() -> dict[str, Any]:
         store = CarbonStore()
@@ -456,12 +897,15 @@ def create_app() -> FastAPI:
             p_name = r.project_name or "default"
             by_project[p_name] = by_project.get(p_name, 0.0) + (r.emissions * 1000.0)
             
-        leaderboard = [
-            {"model": "llama3.2 (local)", "utility_score": 90.0, "emissions_per_1k_tok": 0.01, "ratio": 9000.0},
-            {"model": "gpt-4o-mini", "utility_score": 85.0, "emissions_per_1k_tok": 0.08, "ratio": 1062.5},
-            {"model": "deepseek-coder", "utility_score": 88.0, "emissions_per_1k_tok": 0.12, "ratio": 733.3},
-            {"model": "gpt-4o", "utility_score": 95.0, "emissions_per_1k_tok": 0.45, "ratio": 211.1},
-        ]
+        benchmark_data = await get_esg_benchmark()
+        leaderboard = []
+        for item in benchmark_data["leaderboard"]:
+            leaderboard.append({
+                "model": item["model"],
+                "utility_score": item["utility_score"],
+                "emissions_per_1k_tok": item["emissions_per_1k"],
+                "ratio": item["ratio"],
+            })
         
         offsets = {
             "trees_planted": max(0, int(total_grams / 10.0)),

@@ -35,10 +35,19 @@ class EventBus:
     events matching a type filter (or all events if filter is "*").
     """
 
-    def __init__(self) -> None:
+    def __init__(self, discover_plugins: bool = True) -> None:
         self._queues: dict[str, list[asyncio.Queue[Event]]] = {}
         self._handlers: list[tuple[str, Callable[[Event], Any]]] = []
         self._lock = asyncio.Lock()
+        if discover_plugins:
+            try:
+                from carbonclaw.plugins.base import PluginRegistry
+                registry = PluginRegistry()
+                registry.discover()
+                for event_type, handler in registry.hooks().items():
+                    self.on(event_type, handler)
+            except Exception:
+                pass
 
     async def publish(self, event: Event) -> None:
         """Publish an event to all matching subscribers."""

@@ -30,9 +30,19 @@ class ToolRegistry:
     # Tools whose results can be safely cached within a session
     _CACHEABLE_TOOLS = frozenset(["file_read", "git", "shell"])
 
-    def __init__(self) -> None:
+    def __init__(self, discover_plugins: bool = True) -> None:
         self._tools: dict[str, BaseTool] = {}
         self._cache: dict[str, ToolResult] = {}
+        if discover_plugins:
+            try:
+                from carbonclaw.plugins.base import PluginRegistry
+                registry = PluginRegistry()
+                registry.discover()
+                for tool in registry.tools():
+                    self.register(tool)
+            except Exception:
+                import structlog
+                structlog.get_logger().exception("plugins.discovery_failed")
 
     def register(self, tool: BaseTool) -> None:
         self._tools[tool.name] = tool
