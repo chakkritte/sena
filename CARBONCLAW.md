@@ -106,6 +106,7 @@ carbonclaw models
 | `carbonclaw plan` | **Goal Planning** | Takes a high-level goal and outputs a multi-step, actionable plan for human review. |
 | `carbonclaw status` | **System Status** | View the sustainability and system status dashboard (Live TUI). |
 | `carbonclaw doctor` | **System Health** | Runs diagnostics on dependencies, configuration, and local environment integrity. |
+| `carbonclaw risk <file>` | **Risk Assessment** | Predict refactoring risk score and downstream blast radius using Git history and AST parsing. |
 | `carbonclaw schedule-add "..."` | **Add Scheduled Task** | Schedule a task to run automatically during optimal, green-energy hours. |
 | `carbonclaw schedule-list` | **List Schedule** | Renders a table of queued, running, and completed tasks with savings and emissions. |
 | `carbonclaw schedule-daemon` | **Scheduler Daemon** | Runs a background daemon process that continuously polls and executes due tasks. |

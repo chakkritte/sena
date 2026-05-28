@@ -162,6 +162,7 @@ from carbonclaw.cli import (  # noqa: E402, F401
     plan,
     playback_cmd,
     run,
+    risk_cmd,
     schedule_cmd,
     snapshot,
     status,

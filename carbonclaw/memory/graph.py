@@ -120,6 +120,87 @@ class KnowledgeGraphMemory(BaseMemory):
             return MemoryEntry(id=entry_id, namespace="graph", content=str(data), metadata=data)
         return None
 
+    def analyze_git_churn(self, filepath: str | Path) -> dict[str, Any]:
+        """Query Git history for churn, modification frequency, and authors to calculate refactor risk."""
+        import subprocess
+        path = Path(filepath)
+        if not path.exists():
+            return {"error": "File does not exist."}
+
+        try:
+            # 1. Get commit count (frequency of change)
+            commits_res = subprocess.run(
+                ["git", "log", "--follow", "--format=%H", "--", str(path)],
+                capture_output=True, text=True, check=True
+            )
+            commit_hashes = [h.strip() for h in commits_res.stdout.splitlines() if h.strip()]
+            commit_count = len(commit_hashes)
+
+            # 2. Get author count (contributor count)
+            authors_res = subprocess.run(
+                ["git", "log", "--follow", "--format=%an", "--", str(path)],
+                capture_output=True, text=True, check=True
+            )
+            authors = set(a.strip() for a in authors_res.stdout.splitlines() if a.strip())
+            author_count = len(authors)
+
+            # 3. Get lines added/deleted (lines of code churn)
+            lines_res = subprocess.run(
+                ["git", "log", "--follow", "--numstat", "--format=", "--", str(path)],
+                capture_output=True, text=True, check=True
+            )
+            lines_added = 0
+            lines_deleted = 0
+            for line in lines_res.stdout.splitlines():
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    try:
+                        lines_added += int(parts[0])
+                        lines_deleted += int(parts[1])
+                    except ValueError:
+                        pass # Handles binary or '-' fields
+
+            # Calculate risk score
+            # A simple heuristic risk score (0 to 100):
+            # risk = (commits * 1.2) + (authors * 2.5) + ((lines_added + lines_deleted) * 0.02)
+            # Capped at 100.
+            complexity_factor = 1.0
+            ast_data = self.graph.get(str(path))
+            if ast_data:
+                # Highly complex code structures (many functions/classes) scale up the risk
+                ast_elements = len(ast_data.get("classes", [])) + len(ast_data.get("functions", []))
+                if ast_elements > 10:
+                    complexity_factor = 1.3
+                elif ast_elements > 20:
+                    complexity_factor = 1.6
+
+            base_risk = (commit_count * 1.2) + (author_count * 2.5) + ((lines_added + lines_deleted) * 0.02)
+            risk_score = min(100.0, base_risk * complexity_factor)
+
+            # Get hot spots or blast radius: other files that import symbols from this file
+            blast_radius = []
+            if ast_data:
+                symbols = ast_data.get("classes", []) + ast_data.get("functions", [])
+                for other_path, other_data in self.graph.items():
+                    if other_path == str(path):
+                        continue
+                    for sym in symbols:
+                        if sym in other_data.get("imports", []):
+                            blast_radius.append(other_path)
+                            break
+
+            return {
+                "filepath": str(path),
+                "commits_count": commit_count,
+                "author_count": author_count,
+                "lines_added": lines_added,
+                "lines_deleted": lines_deleted,
+                "risk_score": round(risk_score, 2),
+                "blast_radius": list(set(blast_radius)),
+            }
+        except Exception as e:
+            return {"error": f"Failed to retrieve git history: {e}"}
+
     async def delete(self, entry_id: str) -> bool:
         if entry_id in self.graph:
             del self.graph[entry_id]

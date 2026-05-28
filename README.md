@@ -77,6 +77,7 @@ CarbonClaw comes equipped with highly specialized CLI utilities for local automa
 | `carbonclaw setup` / `init` | Setup | Run the interactive setup wizard to configure providers, keys, and persona. |
 | `carbonclaw status` | Dashboard | View real-time system status and sustainability metrics in a live TUI. |
 | `carbonclaw doctor` | Diagnostics | Diagnose system health, verify API keys, and check Python/Playwright dependencies. |
+| `carbonclaw risk <file>` | Diagnostics | Analyze a file's AST structures and Git history to predict refactoring risk and blast radius. |
 | `carbonclaw doc-sync` | Automation | Audit modified Python files via AST and auto-generate/inject missing docstrings. |
 | `carbonclaw healer-daemon` | Automation | Start a file-watching background daemon to autonomously heal test and lint errors on save. |
 | `carbonclaw playback-list` | Telemetry | List all historically tracked engineering sessions and carbon emission metrics. |
@@ -128,7 +129,7 @@ For detailed guides, architecture, and advanced usage, see [CLAUDE.md](./CLAUDE.
 
 
 ### Month 3: Deep Repo Awareness & Ecosystem
-- [ ] **Advanced Graph Memory Expansion**: Connect the AST Knowledge Graph to Git history (blame, churn) to predict which files are most likely to introduce bugs during a refactor.
+- [x] **Advanced Graph Memory Expansion**: Connect the AST Knowledge Graph to Git history (blame, churn) to predict which files are most likely to introduce bugs during a refactor.
 - [ ] **Custom Plugin Ecosystem**: Stabilize the plugin API so users can publish and share custom tools (e.g., `carbonclaw-tool-aws`, `carbonclaw-tool-jira`).
 - [ ] **Local Model Fine-Tuning**: A CLI command to automatically export successful "lessons learned" and code fixes into a LoRA dataset for fine-tuning small local models.
 
