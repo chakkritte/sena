@@ -121,9 +121,12 @@ carbonclaw models
 
 ## 🔮 Roadmap & Future Work
 CarbonClaw is continually evolving. Key upcoming phases include:
-*   **Phase 4:** Implementing Event-Driven CI/CD Workflows.
-*   **Phase 5:** Advanced Graph Memory integration for complex knowledge retrieval.
-*   **Phase 6:** Local Language Server Protocol (LSP) Integration for IDE support.
+*   **Phase 4 (Completed):** Implementing Event-Driven CI/CD Webhooks and Autonomous Healing Daemon.
+*   **Phase 5 (Completed):** Advanced AST Graph Memory and Git Churn Risk Analysis.
+*   **Phase 6 (Completed):** Extension Integration backend API and security gate endpoint orchestration.
+*   **Phase 7 (Upcoming):** Stabilizing the Custom Plugin API for custom integrations (e.g. AWS, Jira tools).
+*   **Phase 8 (Upcoming):** Local Model Fine-Tuning dataset compilation CLI from telemetry traces.
+*   **Phase 9 (Upcoming):** Automated Global Sustainability Benchmark Dashboard for open-source model carbon footprint comparison.
 
 ---
 *Built with a commitment to engineering excellence and autonomous computation.*
