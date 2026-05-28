@@ -23,6 +23,7 @@ Detailed guide for architecture, advanced usage, and configuration.
     - [Collaborative Agent Sessions](#collaborative-agent-sessions)
     - [Telemetry Session Playback](#telemetry-session-playback)
     - [AST-Based Self-Documenting Code](#ast-based-self-documenting-code)
+    - [AST & Git-Aware Refactoring Risk Analysis](#ast--git-aware-refactoring-risk-analysis)
 11. [Advanced Roadmap Features](#advanced-roadmap-features)
     - [CI/CD Healer Daemon](#cicd-healer-daemon)
     - [Playwright Visual Regression Testing](#playwright-visual-regression-testing)
@@ -249,6 +250,22 @@ The `/doc-sync` system keeps code documentation perfectly current with codebase 
 - **AST Parsing**: Dynamically audits Python modules to identify classes, methods, or functions lacking docstrings.
 - **Docstring Injection**: Invokes DocsAgent to generate premium PEP-257 docstrings and injects them precisely at the AST source target location, preserving leading indentation.
 - **Git Sync**: Integrates with Git status to scan and document only newly added or modified files.
+
+### AST & Git-Aware Refactoring Risk Analysis
+
+Predict codebase refactoring risk and downstream blast radius prior to modifying code using a blended heuristic of Git churn and AST parsing.
+
+- **Risk Score Heuristics**: Combines Git modification frequency, author density, net line churn, and AST structure complexity:
+  $$\text{Base Risk} = (\text{Commits} \times 1.2) + (\text{Authors} \times 2.5) + (\text{Net Churn} \times 0.02)$$
+  $$\text{Complexity Factor} = 1 + \left(\frac{\text{Classes} + \text{Functions}}{10.0}\right)$$
+  $$\text{Risk Score} = \min(100.0, \text{Base Risk} \times \text{Complexity Factor})$$
+- **CLI Commands**:
+  - `carbonclaw risk <filepath>`: Runs full diagnostic risk profiling for a specific Python file, outputting rich tables and indicator levels:
+    - `[green]LOW RISK[/green]` (Score < 30)
+    - `[yellow]MODERATE RISK[/yellow]` (Score 30 to 60)
+    - `[red]HIGH RISK[/red]` (Score > 60)
+- **Slash Commands**:
+  - `/risk <filepath>`: Executes and displays AST refactoring risk assessment from within the interactive TUI or CLI chat sessions.
 
 ---
 
