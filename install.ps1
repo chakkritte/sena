@@ -75,6 +75,13 @@ Write-Host "📦 Syncing dependencies (this may take a minute or two)..." -Foreg
 uv sync --all-extras
 if (-not $?) {
     Write-Host "❌ uv sync failed." -ForegroundColor Red
+    Write-Host "💡 Troubleshooting Tip: " -ForegroundColor Yellow -NoNewline
+    Write-Host "If you encountered 'Access is denied' (os error 5), another process (like VS Code, PyCharm, or an active python terminal) is likely locking the virtual environment (.venv)." -ForegroundColor White
+    Write-Host "To resolve this:" -ForegroundColor White
+    Write-Host "  1. Close any open code editors, IDEs, or Python processes." -ForegroundColor White
+    Write-Host "  2. Manually delete the '.venv' directory by running:" -ForegroundColor White
+    Write-Host "     Remove-Item -Recurse -Force .venv" -ForegroundColor Yellow
+    Write-Host "  3. Re-run this installer script." -ForegroundColor White
     return
 }
 
