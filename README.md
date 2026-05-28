@@ -21,7 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.
 ```powershell
 irm https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.ps1 | iex
 ```
-*Requires Python 3.12+, Git, and uv.*
+*Requires Python 3.12+ and Git (uv will be auto-installed if missing).*
 
 ## 🌟 Key Features
 

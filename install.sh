@@ -27,10 +27,21 @@ else
     fi
 fi
 
-# 2. Check for uv
+# 2. Check and auto-install uv if missing
 if ! command -v uv &> /dev/null; then
-    echo "❌ 'uv' not found. Please install it first: https://docs.astral.sh/uv/getting-started/installation/"
-    exit 1
+    echo "🔍 'uv' not found. Installing 'uv' automatically..."
+    if curl -LsSf https://astral.sh/uv/install.sh | sh; then
+        # Add uv to PATH for this session
+        export PATH="$HOME/.local/bin:$PATH"
+        if ! command -v uv &> /dev/null; then
+            echo "❌ 'uv' was installed but could not be located in PATH. Please restart your terminal and run setup again."
+            exit 1
+        fi
+        echo "✅ 'uv' installed and configured successfully!"
+    else
+        echo "❌ Failed to install 'uv' automatically. Please install it manually: https://docs.astral.sh/uv/getting-started/installation/"
+        exit 1
+    fi
 fi
 
 # 3. Setup environment and dependencies

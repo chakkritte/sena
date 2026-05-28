@@ -72,7 +72,7 @@ The primary user-facing entry points. These scripts wrap the complex agent inter
 
 ### Prerequisites
 *   Python 3.12+
-*   `uv` (Recommended for dependency management)
+*   `uv` (Recommended, will be automatically installed if missing)
 *   Git
 
 ### 1. Installation
