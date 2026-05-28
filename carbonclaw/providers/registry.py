@@ -10,7 +10,6 @@ from carbonclaw.providers.anthropic import AnthropicProvider
 from carbonclaw.providers.gemini import GeminiProvider
 from carbonclaw.providers.ollama import OllamaProvider
 from carbonclaw.providers.openai import OpenAIProvider
-from carbonclaw.providers.llamacpp import LlamaCppProvider
 
 logger = structlog.get_logger()
 
@@ -19,7 +18,6 @@ _PROVIDER_MAP: dict[str, type[BaseProvider]] = {
     "anthropic": AnthropicProvider,
     "gemini": GeminiProvider,
     "ollama": OllamaProvider,
-    "llamacpp": LlamaCppProvider,
     "openrouter": OpenAIProvider,
     "deepseek": OpenAIProvider,
 }
@@ -44,11 +42,6 @@ class ProviderRegistry:
             return OllamaProvider(
                 base_url=base_url or "http://localhost:11434",
                 default_model=default_model,
-            )
-
-        if name == "llamacpp":
-            return LlamaCppProvider(
-                model_path=base_url or "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
             )
 
         if name in ("openrouter", "deepseek"):
