@@ -29,6 +29,7 @@ irm https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.ps1 | i
 ## 🌟 Key Features
 
 - **Self-Healing CI**: Autonomous daemon mode (`/heal`) that watches for test failures and automatically creates and verifies fixes.
+- **Cross-Platform**: Full first-class support for Linux, macOS, and Windows environments, featuring automatic prerequisite installers and cross-compatible command-line completion, history, and telemetry.
 - **Knowledge Graph Memory**: AST-based code parsing for deep structural awareness and blast-radius analysis.
 - **Model Distillation**: Background benchmarking pipeline ("shadow trials") that autonomously discovers the most carbon-efficient models for your specific tasks.
 - **Visual Architecture**: Vision model integration (`VisionTool`) for architecture diagram verification and UI mockup analysis.
