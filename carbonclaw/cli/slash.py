@@ -228,6 +228,11 @@ class SlashRegistry:
             _cmd_playback,
             aliases=("play",),
         )
+        self.register(
+            "risk",
+            "Predict refactoring risk and downstream blast radius for a file using Git/AST.",
+            _cmd_risk,
+        )
 
 
 # ---------------------------------------------------------------------- #
@@ -289,6 +294,100 @@ async def _cmd_playback(messages: list[Message], args: str, _registry: SlashRegi
         return SlashResult(output=f"[red]Error: Session '{session_id}' not found.[/red]")
 
     return SlashResult(output=playback_group)
+
+
+async def _cmd_risk(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+    """Analyze a file's AST structures and Git history to predict refactoring risk and blast radius."""
+    from pathlib import Path
+    from rich.panel import Panel
+    from rich.table import Table
+    from carbonclaw.memory.graph import KnowledgeGraphMemory
+
+    filepath = args.strip()
+    if not filepath:
+        return SlashResult(output="[bold red]Error:[/bold red] Please specify a filepath, e.g. `/risk carbonclaw/cli/main.py`.")
+
+    path = Path(filepath).absolute()
+    if not path.exists():
+        return SlashResult(output=f"[bold red]Error:[/bold red] File '{filepath}' does not exist.")
+
+    memory = KnowledgeGraphMemory()
+    memory.analyze_file(path)
+    stats = memory.analyze_git_churn(path)
+
+    if "error" in stats:
+        return SlashResult(output=f"[bold red]Error during Git analysis:[/bold red] {stats['error']}")
+
+    score = stats["risk_score"]
+    if score < 30.0:
+        color = "green"
+        level = "LOW RISK"
+        desc = "Safe to refactor. Low change frequency and limited contributor overlap."
+    elif score < 65.0:
+        color = "yellow"
+        level = "MODERATE RISK"
+        desc = "Proceed with care. Moderately high churn or multiple contributors."
+    else:
+        color = "red"
+        level = "HIGH RISK"
+        desc = "CRITICAL: Highly modified, high churn, multiple contributors. High chance of regression!"
+
+    # Render assessment panel
+    panel = Panel(
+        f"[bold {color}]{level}[/bold {color}] — [bold white]{score}/100[/bold white]\n"
+        f"[dim]{desc}[/dim]",
+        title="🔍 Refactoring Risk Assessment",
+        title_align="center",
+        border_style=color,
+        padding=(1, 2)
+    )
+
+    # Render telemetry table
+    git_table = Table(title="📈 Git Churn & Telemetry History", show_header=True, header_style="bold cyan")
+    git_table.add_column("Metric", style="white")
+    git_table.add_column("Value", justify="right", style="bold yellow")
+    git_table.add_column("Risk Impact", style="dim")
+
+    git_table.add_row(
+        "Modification Frequency (Commits)",
+        str(stats["commits_count"]),
+        "High churn increases risk" if stats["commits_count"] > 15 else "Low churn"
+    )
+    git_table.add_row(
+        "Unique Contributors (Authors)",
+        str(stats["author_count"]),
+        "High contributor overlap" if stats["author_count"] > 3 else "Single/few authors"
+    )
+    git_table.add_row(
+        "Lines Added / Deleted",
+        f"+{stats['lines_added']} / -{stats['lines_deleted']}",
+        "High line churn" if (stats["lines_added"] + stats["lines_deleted"]) > 500 else "Stable codebase"
+    )
+
+    # Downstream dependents
+    blast_radius = stats["blast_radius"]
+    if not blast_radius:
+        blast_info = "\n🎯 [bold green]Blast Radius: None detected.[/bold green]\n[dim]No downstream project files currently import symbols from this file.[/dim]\n"
+    else:
+        blast_table = Table(
+            title=f"💥 Downstream Blast Radius ({len(blast_radius)} files affected)",
+            show_header=True,
+            header_style="bold red"
+        )
+        blast_table.add_column("Affected File Path", style="cyan")
+        blast_table.add_column("Dependency Relation", style="white")
+
+        for f in blast_radius:
+            try:
+                rel_path = Path(f).relative_to(Path.cwd()) if Path(f).is_absolute() else f
+            except Exception:
+                rel_path = f
+            blast_table.add_row(str(rel_path), "Imports symbols from this module")
+        blast_info = blast_table
+
+    # Assemble output group
+    from rich.console import Group
+    return SlashResult(output=Group(panel, git_table, blast_info))
 
 
 async def _cmd_schedule(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:

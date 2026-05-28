@@ -101,6 +101,7 @@ The `carbonclaw chat` command provides a modern AI coding CLI experience:
 | **Sustainability** | `/carbon` shows aggregated carbon emissions |
 | **Task Scheduling** | `/schedule <task>` queues tasks for green peak hours, `/schedule list` shows queue, `/schedule now! <task_id>` overrides |
 | **Session Playback** | `/playback <session_id>` replays thoughts/tool logs of a past agent session, `/playback` lists sessions |
+| **Refactoring Risk** | `/risk <file>` predicts refactoring risk score and downstream blast radius using Git history and AST parsing |
 | **Smart Routing** | `/strategy <mode>` toggles routing (sustainability, latency, balanced) |
 | **Provider Setup** | `/provider <name>` interactively switch LLM providers |
 | **Advanced Fetch** | `/fetch <url>` renders JS-heavy pages via Playwright |

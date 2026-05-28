@@ -174,3 +174,27 @@ async def test_cmd_cost_empty() -> None:
     messages = [Message(role="system", content="sys")]
     result = await _cmd_cost(messages, "", SlashRegistry())
     assert "tokens" in result.output.lower()
+
+
+@pytest.mark.asyncio
+async def test_cmd_risk_slash(tmp_path) -> None:
+    """/risk slash command performs risk analysis correctly."""
+    from unittest.mock import MagicMock, patch
+    registry = SlashRegistry()
+    test_file = tmp_path / "dummy.py"
+    test_file.write_text("def f(): pass")
+
+    with patch("carbonclaw.memory.graph.KnowledgeGraphMemory.analyze_git_churn") as mock_git:
+        mock_git.return_value = {
+            "filepath": str(test_file),
+            "commits_count": 5,
+            "author_count": 2,
+            "lines_added": 70,
+            "lines_deleted": 15,
+            "risk_score": 25.0,
+            "blast_radius": [],
+        }
+        
+        result = await registry.dispatch([], f"/risk {test_file}")
+        assert result is not None
+        assert result.output is not None
