@@ -26,7 +26,7 @@ class StreamingDisplay:
         self.title = title
         self._text = ""
         self._live: Live | None = None
-        self._spinner = UnicodeSpinner("braille", text="Thinking...", style="dim")
+        self._spinner = UnicodeSpinner("thinking", text="Thinking...", style="dim")
 
     def __enter__(self) -> StreamingDisplay:
         """Enter the live display context."""

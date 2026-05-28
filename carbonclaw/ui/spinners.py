@@ -17,6 +17,10 @@ SPINNERS: dict[str, dict[str, Any]] = {
         "frames": ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
         "interval": 80,
     },
+    "thinking": {
+        "frames": ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"],
+        "interval": 80,
+    },
     "brailledots": {
         "frames": ["⢀", "⡀", "⠄", "⠂", "⠁", "⠂", "⠄", "⡀"],
         "interval": 100,
