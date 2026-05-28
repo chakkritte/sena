@@ -37,12 +37,37 @@ if (-not $isRepoRoot) {
     }
 }
 
-# 2. Check for uv
+# 2. Check for and auto-install uv if missing
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-    Write-Host "❌ 'uv' not found. Please install it first: https://docs.astral.sh/uv/getting-started/installation/" -ForegroundColor Red
-    Write-Host "Tip: You can install uv in PowerShell via:" -ForegroundColor Yellow
-    Write-Host "  powershell -ExecutionPolicy ByPass -c `"irm https://astral.sh/uv/install.ps1 | iex`"" -ForegroundColor Yellow
-    return
+    Write-Host "🔍 'uv' not found. Installing 'uv' automatically..." -ForegroundColor Yellow
+    try {
+        # Execute Astral's official PowerShell installer
+        Invoke-Expression (Invoke-RestMethod https://astral.sh/uv/install.ps1)
+        
+        # Refresh the current session's PATH environment variables
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "User") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+        
+        # Double check if uv can be found now
+        if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+            # Check default path if the path refresh wasn't fully reflected
+            $defaultUvBin = Join-Path $HOME ".local\bin"
+            $defaultUvPath = Join-Path $defaultUvBin "uv.exe"
+            if (Test-Path $defaultUvPath) {
+                $env:Path += ";$defaultUvBin"
+            }
+        }
+    } catch {
+        Write-Host "❌ Failed to install 'uv' automatically." -ForegroundColor Red
+        Write-Host "Please install it manually: https://docs.astral.sh/uv/getting-started/installation/" -ForegroundColor Red
+        return
+    }
+
+    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+        Write-Host "❌ 'uv' was installed but could not be located in PATH. Please restart your terminal and run setup again." -ForegroundColor Red
+        return
+    } else {
+        Write-Host "✅ 'uv' installed and configured successfully!" -ForegroundColor Green
+    }
 }
 
 # 3. Setup environment and dependencies
