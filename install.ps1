@@ -91,14 +91,20 @@ if (-not $?) {
 # 3.0.5 Install llama-cpp-python with CUDA/CPU auto-detection
 $hasCuda = $false
 if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
-    $hasCuda = $true
+    if (Get-Command nvcc -ErrorAction SilentlyContinue) {
+        $hasCuda = $true
+    } else {
+        Write-Host "⚠️ CUDA GPU detected via nvidia-smi, but the CUDA compiler 'nvcc' was not found in PATH." -ForegroundColor Yellow
+        Write-Host "⚠️ Falling back to CPU-only installation for llama.cpp." -ForegroundColor Yellow
+        Write-Host "💡 Tip: To enable GPU acceleration, install the CUDA Toolkit for Windows." -ForegroundColor Yellow
+    }
 }
 if ($hasCuda) {
     Write-Host "🔥 CUDA detected! Installing llama-cpp-python with GPU (CUDA) acceleration..." -ForegroundColor Green
     $env:CMAKE_ARGS = "-DGGML_CUDA=on"
     uv pip install llama-cpp-python --no-cache --no-binary llama-cpp-python
 } else {
-    Write-Host "💻 No CUDA detected. Installing llama-cpp-python (CPU only)..." -ForegroundColor Yellow
+    Write-Host "💻 Installing llama-cpp-python (CPU only)..." -ForegroundColor Yellow
     uv pip install llama-cpp-python
 }
 
