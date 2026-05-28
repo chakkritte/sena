@@ -26,6 +26,9 @@ irm https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.ps1 | i
 > [!TIP]
 > **Windows Installation Troubleshooting:** If the installation fails with `Access is denied (os error 5)` during `uv sync`, it means an open editor (like VS Code, PyCharm) or python terminal is locking the `.venv` folder. Close your editors/terminals, run `Remove-Item -Recurse -Force .venv` inside the repository, and run the installer again.
 
+> [!NOTE]
+> **Built-in Local LLM Support (llama.cpp):** The installers automatically detect and compile `llama-cpp-python` with **GPU/CUDA acceleration** if `nvidia-smi` and the `nvcc` compiler are present on your system. Otherwise, it gracefully falls back to a CPU-optimized local installation. We also dynamically auto-download default model GGUF weights from Hugging Face if they are missing locally.
+
 ## 🌟 Key Features
 
 - **Self-Healing CI**: Autonomous daemon mode (`/heal`) that watches for test failures and automatically creates and verifies fixes.
