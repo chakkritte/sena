@@ -108,6 +108,7 @@ carbonclaw models
 | `carbonclaw template-pull <name>` | **Pull Template** | Downloads and installs a specialized agent configuration template from the marketplace. |
 | `carbonclaw template-publish <name>` | **Publish Template** | Registers your custom agent configuration template to the marketplace. |
 | `carbonclaw doc-sync` | **Document Sync** | Audits modified files and auto-generates/injects missing Python docstrings via AST parsing. |
+| `carbonclaw healer-daemon` | **Healer Daemon** | Start a file-watching background daemon that auto-heals lint and test failures on save. |
 
 
 ## 🔮 Roadmap & Future Work

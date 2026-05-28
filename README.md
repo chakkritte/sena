@@ -86,8 +86,8 @@ For detailed guides, architecture, and advanced usage, see [CLAUDE.md](./CLAUDE.
 
 ### Month 1: IDE Integration & Swarm Expansion
 - [x] **IDE / Extension Integration**: Launch extension API backend endpoints to provide inline sustainability badges and execution security gates directly inside editors.
-- [ ] **Multi-Agent Debate UI**: Add a rich, interactive TUI for viewing Swarm Debates in real-time, allowing humans to interject and vote on agent proposals.
-- [ ] **Playwright Visual Testing**: Agents can write and execute visual regression tests using the integrated `VisionTool`.
+- [x] **Multi-Agent Debate UI**: Add a rich, interactive TUI for viewing Swarm Debates in real-time, allowing humans to interject and vote on agent proposals.
+- [x] **Playwright Visual Testing**: Agents can write and execute visual regression tests using the integrated `VisionTool` and Pillow comparison.
 
 ### Month 2: Proactive Automation & CI/CD
 - [x] **Event-Driven Workflows**: Connect CarbonClaw to GitHub/GitLab Webhooks to autonomously heal CI build pipelines, creating and verifying automated branch fixes.

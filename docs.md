@@ -12,6 +12,21 @@ Detailed guide for architecture, advanced usage, and configuration.
 7. [Worker Pools](#worker-pools)
 8. [Distributed Runtime](#distributed-runtime)
 9. [Plugin System](#plugin-system)
+10. [Core Sustainability & Autonomic Features](#core-sustainability--autonomic-features)
+    - [Carbon-Aware Scheduling](#carbon-aware-scheduling)
+    - [Carbon Budgeting & Limits](#carbon-budgeting--limits)
+    - [VS Code / IDE Extension Integration](#vs-code--ide-extension-integration)
+    - [ESG & Sustainability Dashboard](#esg--sustainability-dashboard)
+    - [GitHub Webhook Healer CI](#github-webhook-healer-ci)
+    - [Agent Template Marketplace](#agent-template-marketplace)
+    - [Prompt Efficiency Optimizer](#prompt-efficiency-optimizer)
+    - [Collaborative Agent Sessions](#collaborative-agent-sessions)
+    - [Telemetry Session Playback](#telemetry-session-playback)
+    - [AST-Based Self-Documenting Code](#ast-based-self-documenting-code)
+11. [Advanced Roadmap Features](#advanced-roadmap-features)
+    - [CI/CD Healer Daemon](#cicd-healer-daemon)
+    - [Playwright Visual Regression Testing](#playwright-visual-regression-testing)
+    - [Swarm Debate Console TUI](#swarm-debate-console-tui)
 
 ---
 
@@ -146,3 +161,117 @@ Provides building blocks for multi-node deployments:
 ## Plugin System
 
 Create plugins by implementing `CarbonClawPlugin` and registering via `[project.entry-points."carbonclaw.plugins"]`.
+
+---
+
+## Core Sustainability & Autonomic Features
+
+### Carbon-Aware Scheduling
+
+CarbonClaw features an intelligent scheduling engine that delays carbon-intensive cloud workloads to wind and solar peak periods when local grid carbon intensity is lowest.
+
+- **Store**: Uses a persistent Scheduler database (`SchedulerStore`) at `~/.config/carbonclaw/scheduled_tasks.jsonl`.
+- **Estimation**: Autonomously determines projected CO₂ emissions and potential savings depending on task categorization (e.g. `research` gets a higher simulated electricity footprint than a brief `plan`).
+- **CLI Commands**:
+  - `carbonclaw schedule-add "Command"`: Queues a task for execution during optimal green-energy hours.
+  - `carbonclaw schedule-list`: Renders the table of queued, active, or completed scheduling sessions.
+  - `carbonclaw schedule-daemon`: Launches a persistent polling runner that executes due tasks when clean energy thresholds are reached.
+- **Slash Commands**:
+  - `/schedule <task_command>`: Queues a scheduled task from within the interactive CLI chat interface.
+  - `/schedule list`: Displays the scheduled task queue dynamically.
+  - `/schedule now! <task_id>`: Forces immediate execution, bypassing scheduling optimization.
+
+### Carbon Budgeting & Limits
+
+Enforce compliance with strict organizational or session carbon ceilings to limit runtime emissions.
+- **Configuration**: Settings map directly to standard configuration fields (`carbon_budget`).
+- **Ceiling Enforcement**: When a session exceeds its configured `--carbon-budget` threshold, further execution is suspended, preventing budget overrun.
+- **CLI Flag**: Specify `--carbon-budget <grams>` during `carbonclaw run` to set a custom ceiling.
+
+### VS Code / IDE Extension Integration
+
+Connects editors directly to the sustainability intelligence backend to supply visual awareness and security gates.
+- **Inline Sustainability Badge**: REST endpoint at `/api/extension/badge` accepts code snippets and calculates execution footprints and active grid status.
+  - Returns raw metrics (e.g. estimated carbon grams, grid carbon intensity).
+  - Emits color-coded visual indicator statuses (`🌱 Clean Grid` in green, `🟡 Moderate` in yellow, `🔴 Peak Fossil` in red).
+- **Dangerous Action Gate**: REST endpoint at `/api/extension/approve` implements a remote approval request hook.
+  - Executes deep **Impact Analysis** on shell command arguments.
+  - Rejects dangerous commands (like `rm -rf` or file deletions) unless explicitly overridden, protecting environments from unauthorized modifications.
+
+### ESG & Sustainability Dashboard
+
+A modern, highly visual FastAPI-powered dashboard that aggregates organization-wide or developer telemetry.
+- **Dashboard UI**: Rendered at `/esg/dashboard`, styled using Outline typography and a premium dark-mode theme featuring:
+  - Total aggregated carbon emissions tracking.
+  - Forestry offsets and partner information (calculating exact equivalent trees planted and Wh clean energy restored).
+  - A real-time **Model Efficiency Leaderboard** displaying the Carbon-to-Utility Ratio of open-source and commercial models.
+  - Dynamic breakdowns of emissions grouped by individual project workspaces.
+- **API Endpoint**: `/api/esg/stats` exposes raw structured data containing emission summaries, grid coefficients, offsets, and leaderboard stats.
+
+### GitHub Webhook Healer CI
+
+FastAPI webhook handler at `/webhooks/github` that listens for repository workflow failures.
+- **Autonomic Healing**: Captures failing runs and immediately spins up an asynchronous background task.
+- **HealerAgent Integration**: Invokes the `HealerAgent` in the background to automatically identify test or compile-time failures, formulate a fix, verify it, and stage the correction.
+
+### Agent Template Marketplace
+
+Enables sharing and pulling specialized agent configurations tailored to specific workflows.
+- **Format**: Declarative TOML formats defining persona parameters (`routing_strategy`, `default_provider`, `system_prompt`, `tools`).
+- **CLI Commands**:
+  - `carbonclaw template-list`: Lists all installed agent templates.
+  - `carbonclaw template-pull <name>`: Pulls a preset (such as `sustainability-swarm`) from the repository workspace.
+  - `carbonclaw template-publish <name>`: Registers custom configuration presets.
+
+### Prompt Efficiency Optimizer
+
+A high-performance context compactor that optimizes raw prompts prior to dispatching them to LLM providers.
+- **Compression**: Employs regex passes to filter verbose greetings, polite fillers (e.g. `Could you kindly`, `please`), and strips redundant consecutive spacing or linebreaks.
+- **Savings Telemetry**: Tracks token reductions and logs exact compaction stats to improve speed, lower cost, and reduce grid footprint.
+
+### Collaborative Agent Sessions
+
+Enables multi-agent workspaces to operate concurrently over a shared SQLite registry.
+- **Shared Caps**: Multi-agent sessions track combined carbon thresholds dynamically.
+- **Resource Lock Management**: Implements concurrency primitives (`acquire_lock` and `release_lock`) so agents do not overwrite or modify identical files or assets simultaneously.
+
+### Telemetry Session Playback
+
+A step-by-step terminal replay debugger to audit and inspect historic agent sessions.
+- **Traces**: Logs execution records (`thought`, `tools_called`, `tool_results`, `duration_secs`, `carbon_emissions_kg`) to `~/.config/carbonclaw/session_traces.jsonl`.
+- **Replay CLI**:
+  - `carbonclaw playback <session_id>`: Iterates sequentially through recorded steps with formatted Rich panels.
+  - `carbonclaw playback-list`: Tables all session tracking logs.
+
+### AST-Based Self-Documenting Code
+
+The `/doc-sync` system keeps code documentation perfectly current with codebase updates.
+- **AST Parsing**: Dynamically audits Python modules to identify classes, methods, or functions lacking docstrings.
+- **Docstring Injection**: Invokes DocsAgent to generate premium PEP-257 docstrings and injects them precisely at the AST source target location, preserving leading indentation.
+- **Git Sync**: Integrates with Git status to scan and document only newly added or modified files.
+
+---
+
+## Advanced Roadmap Features
+
+### CI/CD Healer Daemon
+
+A background daemon that monitors files for immediate, proactive linting and testing corrections.
+- **Usage**: `carbonclaw healer-daemon <path> --command "uv run ruff check"`
+- **Execution Flow**: Watches a directory for Python changes. On save, executes the diagnostic command. If it yields an error, launches the `HealerAgent` to instantly fix and verify the file, providing a continuous autonomic self-healing loop.
+
+### Playwright Visual Regression Testing
+
+A Visual Verification Tool allowing agents to execute visual regression checks using headless chromium screenshots.
+- **Visual Regression Tool**: `visual_regression_test`
+- **Arguments**: `url`, `baseline_path`, `candidate_path`, `threshold`
+- **Comparison Engine**: Captures screenshots using Playwright, measures pixel divergence using Pillow's Root-Mean-Square (RMS) error difference, and automatically establishes baselines when absent.
+
+### Swarm Debate Console TUI
+
+An interactive debate interface that elevates supervisor capabilities via collaborative swarm reasoning.
+- **Execution Flow**: Orchestrates debate iterations between specialized agents (Planner, Coding, Review, QA) to refine drafts.
+- **Human-in-the-Loop Interjections**: Outputs real-time progress using Rich formatting panels and pauses for human feedback options:
+  - `(a)pprove`: Accepts the current consensus.
+  - `(i)nterject`: Inputs custom human direction into the agent conversation log.
+  - `(r)eject`: Rejects and instructs the swarm to restart the iteration.
