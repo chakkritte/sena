@@ -46,6 +46,48 @@ def test_healer_daemon_scan_files(tmp_path: Path) -> None:
     assert venv_file not in scanned_files
 
 
+@pytest.mark.asyncio
+async def test_healer_daemon_heal_file_success() -> None:
+    """Test that _heal_file does not trigger swarm_debate if command passes."""
+    supervisor = AsyncMock(spec=SupervisorAgent)
+    daemon = HealerDaemon(supervisor, check_command="ruff check")
+
+    mock_shell = AsyncMock()
+    mock_shell.execute.return_value = ToolResult(
+        tool_call_id="1",
+        name="shell",
+        content="Success",
+        is_error=False
+    )
+
+    await daemon._heal_file(Path("app.py"), mock_shell)
+    
+    mock_shell.execute.assert_called_once_with({"command": "ruff check app.py"})
+    supervisor.swarm_debate.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_healer_daemon_heal_file_failure() -> None:
+    """Test that _heal_file triggers swarm_debate if command fails."""
+    supervisor = AsyncMock(spec=SupervisorAgent)
+    supervisor.swarm_debate = AsyncMock(return_value="Fixed")
+    daemon = HealerDaemon(supervisor, check_command="ruff check")
+
+    mock_shell = AsyncMock()
+    mock_shell.execute.return_value = ToolResult(
+        tool_call_id="1",
+        name="shell",
+        content="F841 local variable 'x' is assigned to but never used",
+        is_error=True
+    )
+
+    await daemon._heal_file(Path("app.py"), mock_shell)
+
+    mock_shell.execute.assert_called_once_with({"command": "ruff check app.py"})
+    supervisor.swarm_debate.assert_called_once()
+    assert "F841 local variable" in supervisor.swarm_debate.call_args[0][0]
+
+
 def test_visual_testing_tool_schema() -> None:
     """Verify the input schema of PlaywrightVisualTestingTool."""
     tool = PlaywrightVisualTestingTool()
