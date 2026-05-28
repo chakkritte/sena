@@ -32,7 +32,8 @@ curl -fsSL https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.
 - **Browser Automation**: Full web interaction and scraping via Playwright.
 - **Strictly Typed**: 100% Mypy compliance for enterprise reliability.
 - **Observability**: Built-in OpenTelemetry tracing for monitoring execution paths and token costs.
-- **Sustainability**: Real-time carbon emission tracking via `codecarbon` and proactive recommendations for local/greener models on simple tasks.
+- **Sustainability**: Real-time carbon emission tracking via `codecarbon`, active per-session or per-task **Carbon Budgeting** (`--carbon-budget`) to enforce limits, and proactive recommendations for local/greener models on simple tasks.
+- **Carbon-Aware Scheduling**: Intelligently delay resource-heavy cloud tasks to run during solar or wind grid peaks, yielding projected CO₂ savings (supported via `carbonclaw schedule-*` and `/schedule` slash commands).
 - **Advanced Research**: Multi-step Map-Reduce research pipeline for deep web analysis and comprehensive report generation.
 - **Slide Generation**: Automated PowerPoint generation via `PptxGenJS` integration and specialized slide agents.
 - **Smart Routing**: Autonomous model selection based on task type (Coding, Research, Slides) and complexity (inspired by OpenClaude).
@@ -65,6 +66,8 @@ The `carbonclaw chat` command provides a modern AI coding CLI experience:
 | **Draft preservation** | Press `Ctrl+C` while typing — draft is restored on next prompt |
 | **History search** | `/history <query>` or native `Ctrl+R` |
 | **Sustainability** | `/carbon` shows aggregated carbon emissions |
+| **Task Scheduling** | `/schedule <task>` queues tasks for green peak hours, `/schedule list` shows queue, `/schedule now! <task_id>` overrides |
+| **Session Playback** | `/playback <session_id>` replays thoughts/tool logs of a past agent session, `/playback` lists sessions |
 | **Smart Routing** | `/strategy <mode>` toggles routing (sustainability, latency, balanced) |
 | **Provider Setup** | `/provider <name>` interactively switch LLM providers |
 | **Advanced Fetch** | `/fetch <url>` renders JS-heavy pages via Playwright |

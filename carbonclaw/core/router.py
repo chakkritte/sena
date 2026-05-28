@@ -6,16 +6,15 @@ carbon footprint, latency, and cost.
 
 from __future__ import annotations
 
-import asyncio
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from carbonclaw.routing.classifier import classify_task
 from carbonclaw.core.models import Message, TaskType
+from carbonclaw.routing.classifier import classify_task
 
 if TYPE_CHECKING:
     from carbonclaw.config.settings import CarbonClawConfig
@@ -48,10 +47,16 @@ class ProviderStats:
 class SmartRouter:
     """Routes tasks to the most appropriate provider/model based on type and metrics."""
 
-    def __init__(self, config: CarbonClawConfig):
+    def __init__(
+        self,
+        config: CarbonClawConfig,
+        strategic_adjustments: list[dict[str, Any]] | None = None,
+    ):
+        """Initialize the SmartRouter."""
         self.config = config
         self.stats: dict[str, ProviderStats] = {}
         self._init_stats()
+        self.strategic_adjustments = strategic_adjustments or []
 
     def _init_stats(self) -> None:
         """Initialize stats for enabled providers."""
@@ -68,7 +73,7 @@ class SmartRouter:
 
         s = self.stats[provider]
         s.request_count += 1
-        
+
         # EMA for latency (alpha = 0.3)
         alpha = 0.3
         if s.avg_latency_ms == 0:
@@ -79,7 +84,7 @@ class SmartRouter:
         # Simple error rate tracking
         error_val = 0.0 if success else 1.0
         s.error_rate = (alpha * error_val) + (1 - alpha) * s.error_rate
-        
+
         if s.error_rate > 0.7 and s.request_count > 3:
             s.is_healthy = False
             s.last_checked = time.time()
@@ -87,16 +92,14 @@ class SmartRouter:
             s.is_healthy = True
 
     def calculate_complexity(self, task: str, messages: list[Message] | None = None) -> float:
-        """
-        Estimate task complexity (0.0 to 1.0).
-        """
+        """Estimate task complexity (0.0 to 1.0)."""
         score = 0.2  # Base
-        
+
         # Length factor
         total_len = len(task)
         if messages:
             total_len += sum(len(m.content or "") for m in messages)
-        
+
         if total_len > 2000:
             score += 0.4
         elif total_len > 500:
@@ -106,21 +109,19 @@ class SmartRouter:
         complex_keywords = ["refactor", "architect", "optimize", "debug", "deep", "analyze"]
         if any(kw in task.lower() for kw in complex_keywords):
             score += 0.5
-            
+
         return min(1.0, score)
 
     def route(
-        self, 
-        task: str, 
+        self,
+        task: str,
         messages: list[Message] | None = None,
         strategy: RoutingStrategy = RoutingStrategy.SUSTAINABILITY
     ) -> tuple[str, str, TaskType]:
-        """
-        Decide which (provider, model, task_type) to use.
-        """
+        """Decide which (provider, model, task_type) to use."""
         task_type = classify_task(task)
         complexity = self.calculate_complexity(task, messages)
-        
+
         # Filter healthy providers
         available = [s for s in self.stats.values() if s.is_healthy]
         if not available:
@@ -128,6 +129,32 @@ class SmartRouter:
 
         # Determine the target model for this task type from config
         task_model = self.config.routing_models.get(task_type.value)
+
+        # Check Carbon Budget constraints (Feature 2)
+        budget_g = self.config.carbon_budget
+        if budget_g is not None:
+            from carbonclaw.telemetry.carbon import CarbonStore
+            store = CarbonStore()
+            curr_emissions_g = store.total_emissions() * 1000.0
+
+            if curr_emissions_g >= budget_g:
+                # Carbon budget exhausted: force local Ollama to save further cloud CO2 emissions
+                logger.info(
+                    "router.carbon_budget_exhausted", current=curr_emissions_g, budget=budget_g
+                )
+                if "ollama" in self.stats and self.stats["ollama"].is_healthy:
+                    model = task_model or self.config.default_model or "llama3.2"
+                    return "ollama", model, task_type
+            elif curr_emissions_g >= budget_g * 0.7:
+                # Carbon budget low (> 70% used): downgrade medium tasks to local models
+                logger.info("router.carbon_budget_low", current=curr_emissions_g, budget=budget_g)
+                if (
+                    complexity < 0.8
+                    and "ollama" in self.stats
+                    and self.stats["ollama"].is_healthy
+                ):
+                    model = task_model or self.config.default_model or "llama3.2"
+                    return "ollama", model, task_type
 
         # Apply Strategic Adjustments
         strategy_override_provider = None
@@ -143,7 +170,7 @@ class SmartRouter:
                         match = complexity > thresh
                     except ValueError:
                         pass
-                
+
                 if match:
                     action = adj.get("action", "")
                     if action == "prefer_cloud":
@@ -163,13 +190,14 @@ class SmartRouter:
         if strategy == RoutingStrategy.SUSTAINABILITY:
             # If complexity is high, pick cloud to ensure quality
             if complexity >= 0.7:
-                 return self.config.default_provider, self.config.default_model or "gpt-4o", task_type
-            
+                model = self.config.default_model or "gpt-4o"
+                return self.config.default_provider, model, task_type
+
             # Prefer local for simple/medium tasks
             if "ollama" in self.stats and self.stats["ollama"].is_healthy:
                 model = task_model or self.config.default_model or "llama3.2"
                 return "ollama", model, task_type
-            
+
             # Fallback to cloud if Ollama unhealthy
             return self.config.default_provider, self.config.default_model or "gpt-4o", task_type
 
@@ -179,19 +207,19 @@ class SmartRouter:
             # Carbon/Cost factor: local = 0, cloud = 1.0
             sustainability_factor = 0.0 if s.is_local else 1.0
             error_penalty = s.error_rate * 500.0
-            
+
             return (latency_factor * 0.2) + (sustainability_factor * 0.8) + error_penalty
 
         best_provider = min(available, key=get_score)
-        
+
         # Model selection within provider
         model = task_model or self.config.default_model or "llama3.2"
-        
+
         # If cloud and very complex, switch to 'pro' model
         if not best_provider.is_local and complexity > 0.8:
             if best_provider.name == "anthropic":
                 model = "claude-3-5-sonnet-latest"
             elif best_provider.name == "openai":
                 model = "gpt-4o"
-        
+
         return best_provider.name, model, task_type

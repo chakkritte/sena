@@ -150,6 +150,24 @@ class ContextManager:
         tools: list[Any] | None = None,
     ) -> list[Message]:
         """Prepare messages for a completion request, persisting trimmed ones to memory."""
+        # Run Prompt Optimization (Feature 7)
+        from carbonclaw.context.optimizer import PromptOptimizer
+
+        optimizer = PromptOptimizer(enabled=True)
+        for msg in messages:
+            if msg.role == "user" and msg.content:
+                # Avoid optimizing slash commands
+                if not msg.content.strip().startswith("/"):
+                    opt_text, saved = optimizer.optimize(msg.content)
+                    if saved > 0:
+                        msg.content = opt_text
+                        co2_saved_g = saved * 0.003
+                        from carbonclaw.cli.main import console
+                        console.print(
+                            f"🌱 [dim]Prompt Optimized: Saved {saved} tokens "
+                            f"(~{co2_saved_g:.3f}g CO2)[/dim]"
+                        )
+
         total = TokenCounter.count_messages(messages)
         available = self.budget.available_for_context()
 

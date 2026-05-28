@@ -8,7 +8,7 @@ from typing import Any
 
 import platformdirs
 import structlog
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
@@ -27,7 +27,7 @@ class _ProjectSource(PydanticBaseSettingsSource):
     """Load project-level config from pyproject.toml [tool.carbonclaw]."""
 
     def get_field_value(
-        self, field: "FieldInfo", field_name: str
+        self, field: FieldInfo, field_name: str
     ) -> tuple[Any, str, bool]:
         pyproject = Path("pyproject.toml")
         if not pyproject.exists():
@@ -56,7 +56,7 @@ class _UserSource(PydanticBaseSettingsSource):
     """Load user-level config from ~/.config/carbonclaw/config.toml."""
 
     def get_field_value(
-        self, field: "FieldInfo", field_name: str
+        self, field: FieldInfo, field_name: str
     ) -> tuple[Any, str, bool]:
         path = Path(platformdirs.user_config_dir("carbonclaw")) / "config.toml"
         if not path.exists():
@@ -84,7 +84,7 @@ class _PersonaSource(PydanticBaseSettingsSource):
     """Load agent persona from ~/.config/carbonclaw/persona.toml."""
 
     def get_field_value(
-        self, field: "FieldInfo", field_name: str
+        self, field: FieldInfo, field_name: str
     ) -> tuple[Any, str, bool]:
         if field_name != "persona":
             return None, field_name, False
@@ -165,6 +165,7 @@ class CarbonClawConfig(BaseSettings):
     carbon_tracking_enabled: bool = True
     carbon_offline_mode: bool = False
     carbon_country_iso_code: str | None = None
+    carbon_budget: float | None = None  # Per-session/task carbon budget in grams
 
     # Routing
     routing_strategy: str = "sustainability"  # sustainability, latency, balanced
@@ -229,7 +230,7 @@ class CarbonClawConfig(BaseSettings):
             "deepseek": self.deepseek,
         }
         cred = mapping.get(name.lower(), ProviderCredential())
-        
+
         # Fallback to top-level fields if not specified in the provider block
         if cred.api_key is None and name.lower() == self.default_provider.lower():
             cred.api_key = self.api_key
@@ -237,7 +238,7 @@ class CarbonClawConfig(BaseSettings):
             cred.base_url = self.base_url
         if cred.default_model is None and name.lower() == self.default_provider.lower():
             cred.default_model = self.default_model
-            
+
         return cred
 
     @staticmethod

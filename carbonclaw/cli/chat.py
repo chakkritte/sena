@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
-import os
 import readline
-import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import typer
 
@@ -17,7 +15,7 @@ from carbonclaw.cli.main import app, console
 from carbonclaw.cli.slash import SlashRegistry
 from carbonclaw.config.settings import CarbonClawConfig
 from carbonclaw.context.manager import ContextManager
-from carbonclaw.core.models import CompletionRequest, Message, ToolCall, StreamChunk
+from carbonclaw.core.models import CompletionRequest, Message, ToolCall
 from carbonclaw.memory.sqlite import SQLiteMemory
 from carbonclaw.prompts.base import PromptTemplate
 from carbonclaw.providers.registry import ProviderRegistry
@@ -100,8 +98,8 @@ def _read_input(console: Any, draft_manager: DraftManager, completer: Callable[[
     draft = draft_manager.load()
     if draft:
         console.print("[dim]Restored draft (edit or press Enter to send):[/dim]")
-        
-        # Pre-fill readline buffer with the draft. We combine this with the 
+
+        # Pre-fill readline buffer with the draft. We combine this with the
         # startup hook to ensure the draft is loaded right before input.
         def startup_hook() -> None:
             readline.insert_text(draft)
@@ -181,12 +179,12 @@ async def _execute_tools_with_approval(
         # Check if approval is needed
         needs_approval = True
         safe_commands = ["ls", "pwd", "git status", "git diff", "cat", "grep", "find"]
-        
+
         if config.auto_approve_safe_commands and call.name == "shell":
             cmd = call.arguments.get("command", "")
             if any(cmd.startswith(s) for s in safe_commands):
                 needs_approval = False
-        
+
         if config.auto_approve_file_writes and call.name in ("file_write", "file_patch"):
             needs_approval = False
 
@@ -203,7 +201,7 @@ async def _execute_tools_with_approval(
         if approved:
             if renderer:
                 renderer.add_tool_call(call.name, call.arguments)
-                
+
             result = await tools.execute(call.name, call.arguments)
             results.append(
                 Message(
@@ -226,7 +224,7 @@ async def _execute_tools_with_approval(
             )
             if renderer:
                 renderer.add_tool_result(call.name, "Cancelled")
-    
+
     return results
 
 
@@ -241,7 +239,7 @@ async def _run_agent_turn(
 ) -> None:
     """Run one ReAct turn."""
     from carbonclaw.telemetry.carbon import track_carbon
-    
+
     max_iterations = config.max_iterations
     with track_carbon("chat_session", enabled=config.carbon_tracking_enabled) as ct:
         for _ in range(max_iterations):
@@ -372,7 +370,7 @@ async def _run_agent_turn(
             from rich.prompt import Confirm
             if renderer:
                 renderer.pause()
-            
+
             console.print(f"\n[yellow]⚠️ Reached maximum tool iterations ({max_iterations}).[/yellow]")
             if Confirm.ask("The agent might be stuck or needs more steps. Continue for 10 more iterations?"):
                 if renderer:
@@ -399,8 +397,17 @@ async def _chat_loop(
     provider_name: str | None,
     model: str | None,
     streaming: bool,
+    carbon_budget: str | None = None,
 ) -> None:
     config = CarbonClawConfig()
+    if carbon_budget:
+        from carbonclaw.telemetry.carbon import parse_carbon_budget
+
+        parsed = parse_carbon_budget(carbon_budget)
+        if parsed is not None:
+            config.carbon_budget = parsed
+            console.print(f"🌱 [dim]Carbon Budget applied: {parsed:.3f}g CO2[/dim]")
+
     provider_name = provider_name or config.default_provider
     model = model or config.default_model or "llama3.2"
 
@@ -448,11 +455,11 @@ async def _chat_loop(
     # Register MCP tools
     mcp_clients = await register_mcp_tools(tools, config)
 
-    from carbonclaw.core.router import SmartRouter, RoutingStrategy
+    from carbonclaw.core.router import RoutingStrategy, SmartRouter
     router = SmartRouter(config)
 
     slash = SlashRegistry()
-    
+
     async def _cmd_strategy(_messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
         """Change the routing strategy."""
         try:
@@ -467,17 +474,17 @@ async def _chat_loop(
         """Enable sandboxing for the next turn."""
         shell_tool = tools.get("shell")
         if shell_tool:
-            setattr(shell_tool, "_sandbox_override", True)
+            shell_tool._sandbox_override = True
             return SlashResult(output="[bold yellow]Sandbox isolation enabled for the next shell command.[/bold yellow]")
         return SlashResult(output="[red]Shell tool not found.[/red]")
 
     slash.register("strategy", "Change model routing strategy (sustainability, latency, balanced).", _cmd_strategy)
     slash.register("isolate", "Enable Docker sandbox isolation for the next shell command.", _cmd_isolate)
-    
+
     ctx_mgr = ContextManager(provider, model=model)
 
     renderer = ChatRenderer(console, model=model, provider=provider_name)
-    
+
     # Determine endpoint and locality
     prov_config = config.get_provider_config(provider_name)
     endpoint = prov_config.base_url or "https://api.anthropic.com" # Default example
@@ -487,7 +494,7 @@ async def _chat_loop(
         endpoint = "https://generativelanguage.googleapis.com"
     elif provider_name.lower() == "ollama":
         endpoint = prov_config.base_url or "http://localhost:11434"
-    
+
     is_local = provider_name.lower() in ("ollama", "local", "llama.cpp")
 
     from carbonclaw.telemetry.carbon import CarbonStore
@@ -501,7 +508,7 @@ async def _chat_loop(
         is_local=is_local,
         carbon_total=carbon_total
     )
-    
+
     console.print(f"Chatting with [bold green]{provider_name}/{model}[/bold green]")
     console.print("[dim]Type /help for commands, !command for shell, or Ctrl+C to exit.[/dim]\n")
 
@@ -521,15 +528,15 @@ async def _chat_loop(
                 messages=messages
             )
             console.print(status_bar)
-            
+
             # Build the completer dynamically based on registered slash commands
             def slash_completer(text: str, state: int) -> str | None:
                 if text.startswith("/"):
                     # Extract just the command part without the slash for matching
                     query = text[1:]
                     matches = [
-                        "/" + cmd 
-                        for cmd in slash._commands.keys() 
+                        "/" + cmd
+                        for cmd in slash._commands.keys()
                         if cmd.startswith(query)
                     ]
                     # Append a trailing space to complete the command
@@ -584,7 +591,7 @@ async def _chat_loop(
 
             # Regular message
             messages.append(Message(role="user", content=user_input))
-            
+
             # Dynamic routing if allowed
             if not provider_name or provider_name == "auto":
                 strat_name = config.routing_strategy
@@ -592,9 +599,9 @@ async def _chat_loop(
                     strat = RoutingStrategy(strat_name)
                 except ValueError:
                     strat = RoutingStrategy.SUSTAINABILITY
-                
+
                 p_name, m_id, t_type = router.route(user_input, messages[:-1], strategy=strat)
-                
+
                 curr_p_name = active_provider.__class__.__name__.lower().replace("provider", "")
                 if p_name != curr_p_name or m_id != active_model:
                     try:
@@ -642,11 +649,11 @@ async def _chat_loop(
             finally:
                 latency = (time.time() - start_t) * 1000
                 router.update_metrics(
-                    active_provider.__class__.__name__.lower().replace("provider", ""), 
-                    latency, 
+                    active_provider.__class__.__name__.lower().replace("provider", ""),
+                    latency,
                     success
                 )
-                
+
                 if success and messages and messages[-1].role == "assistant" and messages[-1].content:
                     from carbonclaw.core.benchmark import Benchmarker
                     benchmarker = Benchmarker(config)
@@ -666,7 +673,7 @@ async def _chat_loop(
                 await asyncio.shield(_cleanup())
             except (asyncio.CancelledError, Exception):
                 pass
-        
+
         # Save history
         with contextlib.suppress(OSError):
             readline.write_history_file(str(history_path))
@@ -677,6 +684,9 @@ def chat(
     provider: str | None = typer.Option(None, "--provider", "-p", help="LLM provider to use."),
     model: str | None = typer.Option(None, "--model", "-m", help="Model ID to use."),
     no_streaming: bool = typer.Option(False, "--no-streaming", help="Disable real-time streaming."),
+    carbon_budget: str | None = typer.Option(
+        None, "--carbon-budget", help="Carbon budget limit (e.g. 5g, 500mg)."
+    ),
 ) -> None:
     """Start an interactive chat session with CarbonClaw."""
-    asyncio.run(_chat_loop(provider, model, not no_streaming))
+    asyncio.run(_chat_loop(provider, model, not no_streaming, carbon_budget))

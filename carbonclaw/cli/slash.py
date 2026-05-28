@@ -216,11 +216,176 @@ class SlashRegistry:
             "Run autonomous self-healing CI loop for failing tests.",
             _cmd_heal,
         )
+        self.register(
+            "schedule",
+            "Schedule a task to run during optimal, carbon-efficient hours.",
+            _cmd_schedule,
+            aliases=("sched",),
+        )
+        self.register(
+            "playback",
+            "Replay agent execution steps for a specific session.",
+            _cmd_playback,
+            aliases=("play",),
+        )
 
 
 # ---------------------------------------------------------------------- #
 # Default handlers
 # ---------------------------------------------------------------------- #
+
+
+async def _cmd_playback(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+    """Replay agent reasoning steps for a session."""
+    from carbonclaw.telemetry.playback import TraceStore, render_session_playback
+    from rich.prompt import Prompt
+    from rich.table import Table
+
+    store = TraceStore()
+    session_id = args.strip()
+
+    if not session_id:
+        # If no session ID provided, list recent sessions
+        sessions = store.sessions()
+        if not sessions:
+            return SlashResult(output="[dim]No recorded agent sessions found.[/dim]")
+
+        from carbonclaw.cli.main import console
+
+        table = Table(
+            title="🎬 Tracked Agent Sessions", show_header=True, header_style="bold green"
+        )
+        table.add_column("Session ID", style="cyan")
+        table.add_column("Agent Class", style="white")
+        table.add_column("Total Steps", justify="right", style="magenta")
+        table.add_column("Total Duration", justify="right", style="yellow")
+        table.add_column("Total Emissions (g)", justify="right", style="green")
+        table.add_column("Timestamp", style="dim")
+
+        # Show latest 10 sessions
+        for s in reversed(sessions[-10:]):
+            table.add_row(
+                s["session_id"],
+                s["agent_name"].upper(),
+                str(s["total_steps"]),
+                f"{s['total_duration']:.2f}s",
+                f"{s['total_emissions_kg'] * 1000.0:.3f}g",
+                s["timestamp"].split("T")[0] if "T" in s["timestamp"] else s["timestamp"],
+            )
+
+        console.print(table)
+
+        choice = Prompt.ask(
+            "Enter a Session ID to replay (or press Enter to cancel)",
+            default="",
+            show_default=False,
+        )
+        session_id = choice.strip()
+        if not session_id:
+            return SlashResult(output="[dim]Playback cancelled.[/dim]")
+
+    playback_group = render_session_playback(session_id)
+    if playback_group is None:
+        return SlashResult(output=f"[red]Error: Session '{session_id}' not found.[/red]")
+
+    return SlashResult(output=playback_group)
+
+
+async def _cmd_schedule(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:
+    """Manage the carbon-aware task schedule."""
+    from carbonclaw.telemetry.scheduler import SchedulerStore, execute_task
+    from rich.table import Table
+
+    store = SchedulerStore()
+    subparts = args.strip().split(maxsplit=1)
+    subcmd = subparts[0].lower() if subparts else ""
+    subargs = subparts[1].strip() if len(subparts) > 1 else ""
+
+    if subcmd == "list":
+        tasks = store.tasks()
+        if not tasks:
+            return SlashResult(output="[dim]No scheduled tasks found.[/dim]")
+
+        table = Table(title="🌱 Carbon-Aware Task Schedule", show_header=True, header_style="bold green")
+        table.add_column("ID", style="cyan")
+        table.add_column("Instruction", style="white")
+        table.add_column("Status", style="bold")
+        table.add_column("Scheduled At", style="dim")
+        table.add_column("Est. Savings", justify="right", style="green")
+        table.add_column("Emissions (kg CO2)", justify="right", style="bold red")
+
+        for t in tasks:
+            status_color = "yellow"
+            if t.status == "completed":
+                status_color = "green"
+            elif t.status == "failed":
+                status_color = "red"
+            elif t.status == "running":
+                status_color = "blue"
+
+            table.add_row(
+                t.id,
+                t.command if len(t.command) < 40 else t.command[:37] + "...",
+                f"[{status_color}]{t.status}[/{status_color}]",
+                t.scheduled_at.split("T")[1][:5] if "T" in t.scheduled_at else t.scheduled_at,
+                f"{t.carbon_savings_grams:.1f}g",
+                f"{t.emissions_kg:.6f}" if t.status == "completed" else "-",
+            )
+        return SlashResult(output=table)
+
+    elif subcmd == "now!":
+        task_id = subargs
+        if not task_id:
+            return SlashResult(output="[red]Please specify a task ID. Usage: /schedule now! <task_id>[/red]")
+        tasks = store.tasks()
+        task = next((t for t in tasks if t.id == task_id), None)
+        if not task:
+            return SlashResult(output=f"[red]Task '{task_id}' not found.[/red]")
+        if task.status in ["completed", "running"]:
+            return SlashResult(output=f"[yellow]Task is already {task.status}.[/yellow]")
+
+        from carbonclaw.cli.main import console
+        console.print(f"🚀 [bold yellow]Executing task '{task_id}' immediately...[/bold yellow]")
+        store.update_task_status(task_id, "running")
+        try:
+            emissions = await execute_task(task)
+            store.update_task_status(task_id, "completed", emissions)
+            return SlashResult(
+                output=f"[bold green]✅ Task '{task_id}' successfully completed.[/bold green]\nEmissions: [white]{emissions:.6f} kg CO2[/white]"
+            )
+        except Exception as e:
+            store.update_task_status(task_id, "failed")
+            return SlashResult(output=f"[bold red]❌ Task execution failed:[/bold red] {e}")
+
+    else:
+        # Schedule a new task
+        task_instruction = args.strip()
+        if not task_instruction:
+            return SlashResult(
+                output=(
+                    "[bold yellow]Usage:[/bold yellow]\n"
+                    "- `/schedule <instruction>`: Schedule a new engineering task.\n"
+                    "- `/schedule list`: View queued/completed tasks.\n"
+                    "- `/schedule now! <task_id>`: Bypass queue and run immediately."
+                )
+            )
+
+        # Detect mode based on keywords
+        mode = "code"
+        if "research" in task_instruction.lower():
+            mode = "research"
+        elif "swarm" in task_instruction.lower():
+            mode = "swarm"
+
+        task = store.add_task(task_instruction, mode)
+        output = (
+            f"🌱 [bold green]Task scheduled at optimal green hour![/bold green]\n"
+            f"[bold]Task ID:[/bold] [cyan]{task.id}[/cyan]\n"
+            f"[bold]Scheduled for:[/bold] {task.scheduled_at.split('T')[1][:5] if 'T' in task.scheduled_at else task.scheduled_at}\n"
+            f"[bold]Projected Carbon Savings:[/bold] [bold white]{task.carbon_savings_grams:.2f}g CO2[/bold white]\n"
+            f"[dim]Run 'carbonclaw schedule-daemon' to process queued tasks autonomously.[/dim]"
+        )
+        return SlashResult(output=output)
 
 
 async def _cmd_heal(messages: list[Message], args: str, _registry: SlashRegistry) -> SlashResult:

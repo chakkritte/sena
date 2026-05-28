@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import time
+import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -132,7 +134,11 @@ class ReactAgent(BaseAgent):
 
                 ctx.messages.append(Message(role="user", content=task))
 
-                for _ in range(ctx.max_iterations):
+                session_id = (context or {}).get("session_id") or uuid.uuid4().hex[:8]
+                for step_idx in range(1, ctx.max_iterations + 1):
+                    step_start = time.time()
+                    start_emissions = ct.last_emissions if ct else 0.0
+
                     response_chunks: list[StreamChunk] = []
                     with trace_span(
                         f"provider.{self.provider.__class__.__name__}.stream",
@@ -206,12 +212,45 @@ class ReactAgent(BaseAgent):
                             )
                         )
 
+                    thought = "".join(content_parts) if content_parts else ""
                     assistant_msg = Message(
                         role="assistant",
-                        content="".join(content_parts) if content_parts else None,
+                        content=thought if thought else None,
                         tool_calls=tool_calls or None,
                     )
                     ctx.messages.append(assistant_msg)
+
+                    tool_results_list = []
+                    # Execute tools
+                    if tool_calls:
+                        for call in tool_calls:
+                            result = await ctx.tools.execute(call.name, call.arguments)
+                            tool_results_list.append(result.content)
+                            ctx.messages.append(
+                                Message(
+                                    role="tool",
+                                    content=result.content,
+                                    tool_call_id=call.id,
+                                    name=call.name,
+                                )
+                            )
+
+                    # Persist Step Trace (Feature 9)
+                    step_duration = time.time() - step_start
+                    step_emissions = (ct.last_emissions - start_emissions) if ct else 0.0
+
+                    from carbonclaw.telemetry.playback import StepTrace, TraceStore
+                    trace = StepTrace(
+                        session_id=session_id,
+                        agent_name=self.name,
+                        step_index=step_idx,
+                        thought=thought,
+                        tools_called=[{"name": c.name, "arguments": c.arguments} for c in tool_calls],
+                        tool_results=tool_results_list,
+                        duration_secs=step_duration,
+                        carbon_emissions_kg=step_emissions,
+                    )
+                    TraceStore().record_step(trace)
 
                     if not tool_calls:
                         # No tool calls — we're done
@@ -219,18 +258,6 @@ class ReactAgent(BaseAgent):
                         if recommendation:
                             res = f"{recommendation}\n\n{res}"
                         return res
-
-                    # Execute tools
-                    for call in tool_calls:
-                        result = await ctx.tools.execute(call.name, call.arguments)
-                        ctx.messages.append(
-                            Message(
-                                role="tool",
-                                content=result.content,
-                                tool_call_id=call.id,
-                                name=call.name,
-                            )
-                        )
 
                 # Max iterations reached
                 res = ctx.messages[-1].content or "Reached maximum iterations."
@@ -284,7 +311,11 @@ class ReactAgent(BaseAgent):
                 ctx.tools.register(t)
             ctx.messages.append(Message(role="user", content=task))
 
-            for _ in range(ctx.max_iterations):
+            session_id = (context or {}).get("session_id") or uuid.uuid4().hex[:8]
+            for step_idx in range(1, ctx.max_iterations + 1):
+                step_start = time.time()
+                start_emissions = ct.last_emissions if ct else 0.0
+
                 content_parts: list[str] = []
                 tool_calls: list[ToolCall] = []
                 current_tool: dict[str, Any] | None = None
@@ -345,38 +376,59 @@ class ReactAgent(BaseAgent):
                         )
                     )
 
+                thought = "".join(content_parts) if content_parts else ""
                 assistant_msg = Message(
                     role="assistant",
-                    content="".join(content_parts) if content_parts else None,
+                    content=thought if thought else None,
                     tool_calls=tool_calls or None,
                 )
                 ctx.messages.append(assistant_msg)
+
+                tool_results_list = []
+                if tool_calls:
+                    import asyncio
+
+                    async def execute_tool_call_stream(call: ToolCall) -> tuple[Message, Any, ToolCall]:
+                        result = await ctx.tools.execute(call.name, call.arguments)
+                        msg = Message(
+                            role="tool",
+                            content=result.content,
+                            tool_call_id=call.id,
+                            name=call.name,
+                        )
+                        return msg, result, call
+
+                    tool_results_with_meta = await asyncio.gather(
+                        *(execute_tool_call_stream(call) for call in tool_calls)
+                    )
+
+                    for msg, result, call in tool_results_with_meta:
+                        ctx.messages.append(msg)
+                        tool_results_list.append(result.content)
+                        yield f"\n\n[{call.name}]\n{result.content}\n\n"
+
+                # Persist Step Trace (Feature 9)
+                step_duration = time.time() - step_start
+                step_emissions = (ct.last_emissions - start_emissions) if ct else 0.0
+
+                from carbonclaw.telemetry.playback import StepTrace, TraceStore
+                trace = StepTrace(
+                    session_id=session_id,
+                    agent_name=self.name,
+                    step_index=step_idx,
+                    thought=thought,
+                    tools_called=[{"name": c.name, "arguments": c.arguments} for c in tool_calls],
+                    tool_results=tool_results_list,
+                    duration_secs=step_duration,
+                    carbon_emissions_kg=step_emissions,
+                )
+                TraceStore().record_step(trace)
 
                 if not tool_calls:
                     if config.carbon_tracking_enabled:
                         emissions = ct.last_emissions
                         yield f"\n\n[Carbon Emissions: {emissions:.6f} kg CO2]"
                     return
-
-                import asyncio
-                
-                async def execute_tool_call_stream(call: ToolCall) -> tuple[Message, Any, ToolCall]:
-                    result = await ctx.tools.execute(call.name, call.arguments)
-                    msg = Message(
-                        role="tool",
-                        content=result.content,
-                        tool_call_id=call.id,
-                        name=call.name,
-                    )
-                    return msg, result, call
-
-                tool_results_with_meta = await asyncio.gather(
-                    *(execute_tool_call_stream(call) for call in tool_calls)
-                )
-                
-                for msg, result, call in tool_results_with_meta:
-                    ctx.messages.append(msg)
-                    yield f"\n\n[{call.name}]\n{result.content}\n\n"
 
             yield "\n[Reached maximum iterations]\n"
             if config.carbon_tracking_enabled:

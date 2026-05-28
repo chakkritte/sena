@@ -9,7 +9,6 @@ import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import structlog
 from platformdirs import user_data_dir
@@ -126,14 +125,14 @@ class CarbonTracker:
         try:
             emissions = self._tracker.stop()
             self._last_emissions = float(emissions) if emissions is not None else 0.0
-            
+
             # Persist the result
             if self._last_emissions > 0:
                 self._store.record(CarbonRecord(
                     project_name=self.project_name,
                     emissions=self._last_emissions
                 ))
-                
+
             return self._last_emissions
         except Exception as e:
             logger.warning("carbon.tracker.stop_failed", error=str(e))
@@ -159,8 +158,7 @@ def track_carbon(name: str, enabled: bool = True) -> Iterator[CarbonTracker]:
 
 
 def get_greener_recommendation(task: str, complexity_score: float) -> str | None:
-    """
-    Recommend a greener alternative if the task is simple.
+    """Recommend a greener alternative if the task is simple.
     
     Args:
         task: The task description.
@@ -176,3 +174,32 @@ def get_greener_recommendation(task: str, complexity_score: float) -> str | None
             "to reduce carbon footprint from network and cloud compute."
         )
     return None
+
+
+def parse_carbon_budget(budget: str | float | int | None) -> float | None:
+    """Parse a carbon budget string (e.g. '5g', '12mg', '1kg') into a float value in grams.
+    
+    Returns None if budget is None or invalid.
+    """
+    if budget is None:
+        return None
+    if isinstance(budget, (int, float)):
+        return float(budget)
+
+    s = str(budget).strip().lower()
+    if not s:
+        return None
+
+    try:
+        if s.endswith("mg"):
+            return float(s[:-2].strip()) / 1000.0
+        elif s.endswith("kg"):
+            return float(s[:-2].strip()) * 1000.0
+        elif s.endswith("g"):
+            return float(s[:-1].strip())
+        else:
+            return float(s)
+    except ValueError:
+        logger.warning("carbon.parse_budget_failed", budget=budget)
+        return None
+

@@ -24,11 +24,22 @@ def run(
     task: str = typer.Argument(..., help="The task for the agent to execute."),
     provider: str | None = typer.Option(None, "--provider", "-p", help="LLM provider to use."),
     model: str | None = typer.Option(None, "--model", "-m", help="Model ID to use."),
+    carbon_budget: str | None = typer.Option(
+        None, "--carbon-budget", help="Carbon budget limit (e.g. 5g, 500mg)."
+    ),
 ) -> None:
     """Run a one-shot task using the coding agent."""
     config = CarbonClawConfig()
     provider_name = provider or config.default_provider
     model = model or config.default_model
+
+    if carbon_budget:
+        from carbonclaw.telemetry.carbon import parse_carbon_budget
+
+        parsed = parse_carbon_budget(carbon_budget)
+        if parsed is not None:
+            config.carbon_budget = parsed
+            console.print(f"🌱 [dim]Carbon Budget applied: {parsed:.3f}g CO2[/dim]")
 
     async def _execute() -> None:
         prov = ProviderRegistry.create(provider_name, config)

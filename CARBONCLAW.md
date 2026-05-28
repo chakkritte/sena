@@ -10,6 +10,7 @@ The system's core philosophy is built on **Observability, Reliability, and Itera
 1.  **Observability:** Every step is tracked via OpenTelemetry tracing, providing granular visibility into execution paths, decision-making, and token costs.
 2.  **Reliability:** Mandatory human-in-the-loop (HITL) approval gates are enforced for sensitive or high-impact operations, now featuring **Impact Analysis**.
 3.  **Iteration:** Agents are designed to self-evolve, learning from successful and failed workflows to improve future performance through **Strategic Evolution**.
+4.  **Sustainability:** Active carbon budgeting enforces hard emission limits per session or task, while grid carbon intensity forecasting postpones non-urgent actions to solar/wind peak hours.
 
 ## 🛠️ Tech Stack & Architecture
 The architecture is modular and adheres to strict engineering standards:
@@ -93,11 +94,16 @@ carbonclaw models
 ### 3. Usage Examples
 | Command | Purpose | Description |
 | :--- | :--- | :--- |
-| `carbonclaw chat` | **Interactive Chat** | Starts a persistent, contextual conversation with the AI. |
-| `carbonclaw run "..."` | **One-Shot Task** | Executes a specific, self-contained task (e.g., "Refactor X file"). |
+| `carbonclaw chat` | **Interactive Chat** | Starts a persistent, contextual conversation with the AI. Supports `/schedule`. |
+| `carbonclaw run "..."` | **One-Shot Task** | Executes a specific, self-contained task. Supports `--carbon-budget`. |
 | `carbonclaw plan` | **Goal Planning** | Takes a high-level goal and outputs a multi-step, actionable plan for human review. |
 | `carbonclaw status` | **System Status** | View the sustainability and system status dashboard (Live TUI). |
 | `carbonclaw doctor` | **System Health** | Runs diagnostics on dependencies, configuration, and local environment integrity. |
+| `carbonclaw schedule-add "..."` | **Add Scheduled Task** | Schedule a task to run automatically during optimal, green-energy hours. |
+| `carbonclaw schedule-list` | **List Schedule** | Renders a table of queued, running, and completed tasks with savings and emissions. |
+| `carbonclaw schedule-daemon` | **Scheduler Daemon** | Runs a background daemon process that continuously polls and executes due tasks. |
+| `carbonclaw playback <session_id>` | **Session Playback** | Steps through the recorded reasoning, duration, and emissions of an agent session. |
+| `carbonclaw playback-list` | **List Sessions** | Displays all uniquely tracked historical agent sessions in a telemetry table. |
 
 ## 🔮 Roadmap & Future Work
 CarbonClaw is continually evolving. Key upcoming phases include:
