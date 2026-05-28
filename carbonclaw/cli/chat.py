@@ -28,6 +28,7 @@ from carbonclaw.tools.mcp import register_mcp_tools
 from carbonclaw.tools.search import FileSearchTool
 from carbonclaw.tools.shell import ShellTool
 from carbonclaw.tools.web_search import WebSearchTool
+from carbonclaw.tools.visual_testing import PlaywrightVisualTestingTool
 from carbonclaw.ui.banner import print_banner
 from carbonclaw.ui.chat_renderer import ChatRenderer
 from carbonclaw.ui.streaming import StreamingDisplay
@@ -438,6 +439,7 @@ async def _chat_loop(
     tools.register(GitHubTool())
     tools.register(FileSearchTool())
     tools.register(WebSearchTool())
+    tools.register(PlaywrightVisualTestingTool())
 
     from carbonclaw.tools.vision import VisionTool
     tools.register(VisionTool())

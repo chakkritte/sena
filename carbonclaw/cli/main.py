@@ -155,6 +155,7 @@ from carbonclaw.cli import (  # noqa: E402, F401
     config_cmd,
     doctor,
     doc_cmd,
+    healer_daemon_cmd,
     init,
     memory_cmd,
     models,
