@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json
+import orjson
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -65,6 +65,8 @@ class SQLiteMemory(BaseMemory):
             return
         try:
             async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("PRAGMA journal_mode=WAL;")
+                await db.execute("PRAGMA synchronous=NORMAL;")
                 await db.executescript(SCHEMA)
                 await db.commit()
             self._initialized = True
@@ -91,7 +93,7 @@ class SQLiteMemory(BaseMemory):
                         entry_id,
                         namespace,
                         content,
-                        json.dumps(metadata or {}),
+                        orjson.dumps(metadata or {}).decode("utf-8"),
                         now,
                         now,
                     ),
@@ -156,7 +158,7 @@ class SQLiteMemory(BaseMemory):
             id=row["id"],
             namespace=row["namespace"],
             content=row["content"],
-            metadata=json.loads(row["metadata"] or "{}"),
+            metadata=orjson.loads(row["metadata"] or "{}"),
             created_at=row["created_at"],
         )
 
@@ -175,7 +177,7 @@ class SQLiteMemory(BaseMemory):
             id=row["id"],
             namespace=row["namespace"],
             content=row["content"],
-            metadata=json.loads(row["metadata"]),
+            metadata=orjson.loads(row["metadata"]),
             created_at=row["created_at"],
         )
 
