@@ -77,8 +77,15 @@ The primary user-facing entry points. These scripts wrap the complex agent inter
 
 ### 1. Installation
 Execute the provided installation script:
+
+**Linux / macOS (Bash):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.ps1 | iex
 ```
 
 ### 2. Configuration

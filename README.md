@@ -12,8 +12,14 @@ CarbonClaw is a **Sustainability-Focused, Local-First, and Privacy-First** AI ag
 
 ## 🚀 One-Line Installation
 
+### Linux / macOS (Bash)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.sh | bash
+```
+
+### Windows (PowerShell)
+```powershell
+irm https://raw.githubusercontent.com/chakkritte/carbonclaw/main/install.ps1 | iex
 ```
 *Requires Python 3.12+, Git, and uv.*
 
@@ -55,6 +61,28 @@ carbonclaw chat
 # Run a one-shot engineering task
 carbonclaw run "Refactor carbonclaw/core/base.py to use Protocol instead of ABC"
 ```
+
+### 🧰 CLI Subcommands Reference
+
+CarbonClaw comes equipped with highly specialized CLI utilities for local automation, telemetry, and daemon execution:
+
+| Command | Category | Description |
+| :--- | :--- | :--- |
+| `carbonclaw chat` | Interaction | Start a persistent, contextual engineering conversation with slash commands. |
+| `carbonclaw run "..."` | Execution | Execute a one-shot task autonomously. Supports `--carbon-budget`. |
+| `carbonclaw setup` / `init` | Setup | Run the interactive setup wizard to configure providers, keys, and persona. |
+| `carbonclaw status` | Dashboard | View real-time system status and sustainability metrics in a live TUI. |
+| `carbonclaw doctor` | Diagnostics | Diagnose system health, verify API keys, and check Python/Playwright dependencies. |
+| `carbonclaw doc-sync` | Automation | Audit modified Python files via AST and auto-generate/inject missing docstrings. |
+| `carbonclaw healer-daemon` | Automation | Start a file-watching background daemon to autonomously heal test and lint errors on save. |
+| `carbonclaw playback-list` | Telemetry | List all historically tracked engineering sessions and carbon emission metrics. |
+| `carbonclaw playback <id>` | Telemetry | Step through and replay the exact thoughts, tool calls, and logs of a past session. |
+| `carbonclaw schedule-add "..."` | Carbon-Aware | Schedule a task to run automatically during green grid peak (low-carbon) hours. |
+| `carbonclaw schedule-list` | Carbon-Aware | List queued and completed scheduled tasks with their carbon savings. |
+| `carbonclaw schedule-daemon` | Carbon-Aware | Run the polling background daemon to process queued carbon-aware tasks. |
+| `carbonclaw template-list` | Swarm | List all locally installed agent configuration templates. |
+| `carbonclaw template-pull <name>` | Swarm | Pull and install a specialized agent configuration template from the marketplace. |
+
 
 ## 💬 Chat Features
 
